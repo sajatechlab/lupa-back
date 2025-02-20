@@ -82,6 +82,6 @@ export class Company {
   @OneToMany(() => Invoice, (invoice) => invoice.thirdParty)
   thirdPartyInvoices: Invoice[];
 
-  @ManyToMany(() => User, (user) => user.company)
+  @ManyToMany(() => User, (user) => user.companies)
   users: User[];
 }

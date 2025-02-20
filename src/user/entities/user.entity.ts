@@ -22,6 +22,16 @@ export class User {
   password: string;
 
   @ManyToMany(() => Company)
-  @JoinTable()
-  company: Company[];
+  @JoinTable({
+    name: 'user_companies',
+    joinColumn: {
+      name: 'user_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'company_id',
+      referencedColumnName: 'id',
+    },
+  })
+  companies: Company[];
 }

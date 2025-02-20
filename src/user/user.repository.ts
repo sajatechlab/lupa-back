@@ -36,7 +36,7 @@ export class UserRepository {
     });
 
     if (user && company) {
-      user.company = [...(user.company || []), company];
+      user.companies = [...(user.companies || []), company];
       return this.userRepository.save(user);
     }
   }

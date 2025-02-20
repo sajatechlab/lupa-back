@@ -414,7 +414,13 @@ export class TableDownloadService {
           ]._ || '',
       };
 
-      await this.softwareProviderRepository.save(softwareProviderData);
+      await this.softwareProviderRepository
+        .createQueryBuilder()
+        .insert()
+        .into('software_provider')
+        .values(softwareProviderData)
+        .orIgnore()
+        .execute();
     });
   }
 

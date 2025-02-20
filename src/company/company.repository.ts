@@ -4,18 +4,26 @@ import { Repository } from 'typeorm';
 import { Company } from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class CompanyRepository {
   constructor(
     @InjectRepository(Company)
-    private companyRepository: Repository<Company>,
+    private readonly companyRepository: Repository<Company>,
   ) {}
+
+  async findAllByUser(userId: number): Promise<Company[]> {
+    return this.companyRepository
+      .createQueryBuilder('company')
+      .innerJoinAndSelect('user_companies', 'uc', 'uc.company_id = company.id')
+      .where('uc.user_id = :userId', { userId })
+      .getMany();
+  }
 
   async findOne(id: string): Promise<Company> {
     return this.companyRepository.findOne({
       where: { id },
-      relations: ['users', 'ownedInvoices', 'thirdPartyInvoices'],
     });
   }
 
@@ -38,17 +46,6 @@ export class CompanyRepository {
 
   findAll() {
     return this.companyRepository.find();
-  }
-
-  findAllByUser(userId: number) {
-    return this.companyRepository.find({
-      where: {
-        users: {
-          id: userId,
-        },
-      },
-      relations: ['users'],
-    });
   }
 
   update(id: string, data: UpdateCompanyDto) {

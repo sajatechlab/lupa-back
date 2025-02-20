@@ -15,12 +15,13 @@ export class CompanyService {
   ) {}
 
   async create(createCompanyDto: CreateCompanyDto, userId: number) {
-    const existingCompany = await this.companyRepository.findOne(
+    const existingCompany = await this.companyRepository.findByNit(
       createCompanyDto.nit,
     );
     if (existingCompany) {
       throw new BadRequestException('Company already exists');
     }
+    console.log('existingCompany', existingCompany);
 
     const company = await this.companyRepository.create(createCompanyDto);
     console.log('company', company);
