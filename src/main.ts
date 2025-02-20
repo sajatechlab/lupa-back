@@ -10,7 +10,10 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: 'http://localhost:8080', // Replace with your frontend's URL
+    origin: [
+      'http://localhost:8080',
+      'https://front-lupa-production.up.railway.app',
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
