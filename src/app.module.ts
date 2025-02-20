@@ -21,6 +21,8 @@ import { AuthModule } from './auth/auth.module';
         database: configService.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: configService.get('NODE_ENV') !== 'production',
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        migrationsRun: configService.get('NODE_ENV') !== 'development',
       }),
     }),
     UserModule,
