@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// prisma/schema.prisma
+model Company {
+  id                          String    @id @default(uuid()) @db.Uuid
+  additionalAccountID         String?
+  industryClassificationCode  String?
+  physicalLocationID         String?
+  countrySubentityCode       String?
+  line                      String?
+  registrationName          String?
+  taxLevelCode             String?
+  taxSchemeID              String?
+  taxSchemeName            String?
+  companyID                String?
+  companyIDSchemeID        String?
+  companyIDSchemeName      String?
+  companyIDSchemeAgencyID  String?
+  contactName              String?
+  contactTelephone         String?
+  contactTelefax          String?
+  contactElectronicMail    String?
+  contactNote              String?   @db.Text
+  registrationAddressID    String?
+  nit                      String    @unique
+  name                     String
+  ownedInvoices     Invoice[] @relation("CompanyInvoices")
+  thirdPartyInvoices Invoice[] @relation("ThirdPartyInvoices")
+  users                User[]
+}
+
+model Invoice {
+  uuid      String   @id @db.Text
+  invoiceNumber     String
+  companyId     String   @db.Uuid      // Owner of the invoice
+  thirdPartyId  String   @db.Uuid        // Customer/Supplier
+  type          InvoiceType
+  company       Company     @relation("CompanyInvoices", fields: [companyId], references: [id])
+  thirdParty    Company     @relation("ThirdPartyInvoices", fields: [thirdPartyId], references: [id])
+  issueDate                                       DateTime  @db.Date
+  issueTime                                       DateTime  @db.Time
+  dueDate                                         DateTime  @db.Date
+  invoiceTypeCode                                 String?
+  note                                           String?   @db.Text
+  documentCurrencyCode                           String?   @db.Char(3)
+  invoiceAllowanceChargeMultiplierFactorNumeric  Decimal?  @db.Decimal(10,2)
+  invoiceAllowanceChargeAmount                   Decimal?  @db.Decimal(15,2)
+  invoiceAllowanceChargeAmountCurrencyID         String?   @db.Char(3)
+  invoiceAllowanceChargeBaseAmount               Decimal?  @db.Decimal(15,2)
+  invoiceAllowanceChargeBaseAmountCurrencyID     String?   @db.Char(3)
+  invoiceTaxTotalTaxAmount                       Decimal?  @db.Decimal(15,2)
+  invoiceTaxTotalTaxAmountCurrencyID             String?   @db.Char(3)
+  invoiceWithholdingTaxTotalTaxAmount            Decimal?  @db.Decimal(15,2)
+  invoiceWithholdingTaxTotalTaxAmountCurrencyID  String?   @db.Char(3)
+  invoiceLineExtensionAmount                     Decimal?  @db.Decimal(15,2)
+  invoiceTaxExclusiveAmount                      Decimal?  @db.Decimal(15,2)
+  invoiceTaxInclusiveAmount                      Decimal?  @db.Decimal(15,2)
+  invoiceAllowanceTotalAmount                    Decimal?  @db.Decimal(15,2)
+  invoiceChargeTotalAmount                       Decimal?  @db.Decimal(15,2)
+  invoicePayableAmount                           Decimal?  @db.Decimal(15,2)
+  lines     InvoiceLine[]
+}
+
+model SoftwareProvider {
+  id   String @id @default(uuid()) @db.Uuid
+  nit  String @unique
+}
+
+enum InvoiceType {
+  SENT     // When we bill someone
+  RECEIVED // When someone bills us
+}
+
+model InvoiceLine {
+  id                                      String    @id @db.Uuid
+  invoiceId                              String    @db.Text
+  lineID                                 String?
+  itemDescription                        String?   @db.Text
+  quantity                               Decimal?  @db.Decimal(10,2)
+  note                                   String?   @db.Text
+  invoicedQuantityUnitCode               String?
+  lineExtensionAmount                    Decimal?  @db.Decimal(10,2)
+  buyersItemID                           String?
+  standardItemID                         String?
+  standardItemSchemeID                   String?
+  standardItemSchemeName                 String?
+  taxTotalAmount                         Decimal?  @db.Decimal(10,2)
+  taxTotalAmountCurrencyID               String?
+  taxableAmount                          Decimal?  @db.Decimal(10,2)
+  taxableAmountCurrencyID                String?
+  taxSchemeID                            String?
+  taxSchemeName                          String?
+  priceAmount                            Decimal?  @db.Decimal(10,2)
+  priceAmountCurrencyID                  String?
+  allowanceChargeID                      String?
+  allowanceChargeIndicator               Boolean?
+  allowanceChargeMultiplierFactorNumeric Decimal?  @db.Decimal(10,2)
+  allowanceChargeAmount                  Decimal?  @db.Decimal(10,2)
+  allowanceChargeAmountCurrency          String?
+  allowanceChargeBaseAmount              Decimal?  @db.Decimal(10,2)
+  withholdingTaxTotalAmount              Decimal?  @db.Decimal(10,2)
+  withholdingTaxTotalAmountCurrency      String?
+  withholdingTaxableAmount               Decimal?  @db.Decimal(10,2)
+  withholdingTaxPercent                  Decimal?  @db.Decimal(10,2)
+  withholdingTaxSchemeID                 String?
+  invoice                                Invoice   @relation(fields: [invoiceId], references: [uuid], onDelete: Cascade)
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String
+  company   Company[] // Changed from single company to many
+}
