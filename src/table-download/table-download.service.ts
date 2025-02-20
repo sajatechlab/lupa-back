@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,11 +12,13 @@ import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
 import * as cheerio from 'cheerio';
 import * as AdmZip from 'adm-zip';
-import { PrismaService } from '../prisma.service';
 import * as xml2js from 'xml2js';
 import { InvoiceData } from './field_definitions';
 import * as crypto from 'crypto';
-import { Company, Prisma } from '@prisma/client';
+import { Company } from '../company/entities/company.entity';
+import { Invoice } from '../invoice/entities/invoice.entity';
+import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
+import { SoftwareProvider } from '../software-provider/entities/software-provider.entity';
 
 enum InvoiceType {
   RECEIVED = 'RECEIVED',
@@ -27,7 +31,14 @@ export class TableDownloadService {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly prisma: PrismaService,
+    @InjectRepository(Company)
+    private companyRepository: Repository<Company>,
+    @InjectRepository(Invoice)
+    private invoiceRepository: Repository<Invoice>,
+    @InjectRepository(InvoiceLine)
+    private invoiceLineRepository: Repository<InvoiceLine>,
+    @InjectRepository(SoftwareProvider)
+    private softwareProviderRepository: Repository<SoftwareProvider>,
   ) {
     // Initialize Axios with cookie jar support
     const jar = new CookieJar();
@@ -316,9 +327,9 @@ export class TableDownloadService {
     type: 'Received' | 'Sent',
   ): Promise<void> {
     const parser = new xml2js.Parser({
-      explicitArray: false, // Ensures all elements are arrays
-      trim: true, // Trims whitespace
-      mergeAttrs: false, // Keeps attributes separate
+      explicitArray: false,
+      trim: true,
+      mergeAttrs: false,
     });
 
     parser.parseString(xmlContent, async (err, r) => {
@@ -327,10 +338,7 @@ export class TableDownloadService {
         return;
       }
 
-      // Log the parsed result to inspect its structure
-      //console.log('Parsed XML Result:', r.Invoice);
       const result = r.Invoice;
-      // Extract relevant fields with checks
       let thirdParty = null;
       let company = null;
 
@@ -342,50 +350,60 @@ export class TableDownloadService {
         company = this.createSupplier(result);
       }
 
-      // Create Third Party
-      const thirdPartyData = await this.prisma.company.upsert({
-        where: { nit: thirdParty?.nit },
-        update: {
-          ...thirdParty,
-          id: undefined, // Exclude id from update
-        },
-        create: thirdParty,
+      // Create or update Third Party
+      let thirdPartyData = await this.companyRepository.findOne({
+        where: { nit: thirdParty.nit },
       });
 
-      const companyData = await this.prisma.company.upsert({
-        where: { nit: company?.nit },
-        update: {
-          ...company,
-          id: undefined, // Exclude id from update
-        },
-        create: company,
+      if (!thirdPartyData) {
+        thirdPartyData = this.companyRepository.create(
+          thirdParty as Partial<Company>,
+        );
+        thirdPartyData = await this.companyRepository.save(thirdPartyData);
+      } else {
+        await this.companyRepository.update(
+          { nit: thirdParty.nit },
+          { ...thirdParty, id: undefined },
+        );
+      }
+
+      // Create or update Company
+      let companyData = await this.companyRepository.findOne({
+        where: { nit: company.nit },
       });
 
-      // Create Invoice with updated structure
+      if (!companyData) {
+        companyData = this.companyRepository.create(
+          company as Partial<Company>,
+        );
+        companyData = await this.companyRepository.save(companyData);
+      } else {
+        await this.companyRepository.update(
+          { nit: company.nit },
+          { ...company, id: undefined },
+        );
+      }
+
+      // Create Invoice
       const invoiceData = this.createInvoice(
         result,
         companyData,
         thirdPartyData,
         type,
       );
-
-      const existingInvoice = await this.prisma.invoice.findUnique({
+      const existingInvoice = await this.invoiceRepository.findOne({
         where: { uuid: invoiceData.uuid },
       });
 
       if (!existingInvoice) {
-        await this.prisma.invoice.create({ data: invoiceData as any });
+        await this.invoiceRepository.save(invoiceData);
 
         // Create Invoice Lines
         const invoiceLines = this.createInvoiceLines(result);
-
-        // Create Invoice Lines
-        await this.prisma.invoiceLine.createMany({
-          data: invoiceLines,
-        });
+        await this.invoiceLineRepository.save(invoiceLines);
       }
 
-      // Create Software Provider
+      // Create or update Software Provider
       const softwareProviderData = {
         id: crypto.randomUUID(),
         nit:
@@ -396,15 +414,10 @@ export class TableDownloadService {
           ]._ || '',
       };
 
-      await this.prisma.softwareProvider.upsert({
-        where: {
-          nit: softwareProviderData.nit,
-        },
-        update: {},
-        create: softwareProviderData,
-      });
+      await this.softwareProviderRepository.save(softwareProviderData);
     });
   }
+
   private createSupplier(result: any) {
     return {
       id: crypto.randomUUID(),
@@ -556,6 +569,7 @@ export class TableDownloadService {
         ]?.['cbc:RegistrationName'] || '',
     };
   }
+
   private createInvoice(
     result: any,
     company: Company,
@@ -626,6 +640,7 @@ export class TableDownloadService {
         ) || 0,
     };
   }
+
   private createInvoiceLines(result: any) {
     if (!Array.isArray(result['cac:InvoiceLine'])) {
       const line = result['cac:InvoiceLine'];

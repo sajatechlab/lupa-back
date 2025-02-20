@@ -1,39 +1,44 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from './entities/user.entity';
+import { Company } from '../company/entities/company.entity';
 
 @Injectable()
 export class UserRepository {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(Company)
+    private companyRepository: Repository<Company>,
+  ) {}
+
+  async findOne(id: number): Promise<User> {
+    return this.userRepository.findOne({ where: { id } });
+  }
 
   async createUser(data: { name: string; email: string; password: string }) {
-    return this.prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-      },
+    return this.userRepository.save({
+      name: data.name,
+      email: data.email,
+      password: data.password,
     });
   }
 
   async findUserByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-    });
+    return this.userRepository.findOne({ where: { email } });
   }
 
   async update(id: number, data: any) {
-    return this.prisma.user.update({
-      where: {
-        id: id,
-      },
-      data: {
-        company: {
-          connect: {
-            id: data.id,
-          },
-        },
-      },
+    const user = await this.userRepository.findOne({ where: { id } });
+    const company = await this.companyRepository.findOne({
+      where: { id: data.id },
     });
+
+    if (user && company) {
+      user.company = [...(user.company || []), company];
+      return this.userRepository.save(user);
+    }
   }
 
   // Add other user-related methods as needed

@@ -1,14 +1,15 @@
 import { Module } from '@nestjs/common';
-import { CompanyController } from './company.controller';
-import { CompanyService } from './company.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Company } from './entities/company.entity';
 import { CompanyRepository } from './company.repository';
-import { PrismaService } from '../prisma.service';
-import { UserModule } from 'src/user/user.module';
+import { CompanyService } from './company.service';
+import { CompanyController } from './company.controller';
+import { UserModule } from '../user/user.module';
 
 @Module({
-  imports: [UserModule],
+  imports: [TypeOrmModule.forFeature([Company]), UserModule],
+  providers: [CompanyRepository, CompanyService],
   controllers: [CompanyController],
-  providers: [CompanyService, CompanyRepository, PrismaService],
-  exports: [CompanyService, CompanyRepository],
+  exports: [CompanyRepository],
 })
 export class CompanyModule {}

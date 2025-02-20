@@ -12,7 +12,7 @@ import { CompanyService } from './company.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { GetUser } from 'src/auth/get-user.decorator';
-import { User } from '@prisma/client';
+import { User } from 'src/user/entities/user.entity';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UseGuards } from '@nestjs/common';
 

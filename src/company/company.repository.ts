@@ -1,44 +1,61 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Company } from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
 @Injectable()
 export class CompanyRepository {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(Company)
+    private companyRepository: Repository<Company>,
+  ) {}
 
-  create(data: CreateCompanyDto) {
-    return this.prisma.company.create({ data });
-  }
-
-  findAll() {
-    return this.prisma.company.findMany();
-  }
-  findAllByUser(userId: number) {
-    return this.prisma.company.findMany({
-      where: {
-        users: {
-          some: { id: userId },
-        },
-      },
+  async findOne(id: string): Promise<Company> {
+    return this.companyRepository.findOne({
+      where: { id },
+      relations: ['users', 'ownedInvoices', 'thirdPartyInvoices'],
     });
   }
-  findOne(nit: string) {
-    return this.prisma.company.findUnique({
+
+  async findByNit(nit: string): Promise<Company> {
+    return this.companyRepository.findOne({
       where: { nit },
     });
   }
 
-  update(id: string, data: UpdateCompanyDto) {
-    return this.prisma.company.update({
-      where: { id },
-      data,
+  async create(data: Partial<Company>): Promise<Company> {
+    const company = this.companyRepository.create(data);
+    return this.companyRepository.save(company);
+  }
+
+  async findFirst(params: any): Promise<Company> {
+    return this.companyRepository.findOne({
+      where: params.where,
     });
   }
 
-  remove(id: string) {
-    return this.prisma.company.delete({
-      where: { id },
+  findAll() {
+    return this.companyRepository.find();
+  }
+
+  findAllByUser(userId: number) {
+    return this.companyRepository.find({
+      where: {
+        users: {
+          id: userId,
+        },
+      },
+      relations: ['users'],
     });
+  }
+
+  update(id: string, data: UpdateCompanyDto) {
+    return this.companyRepository.update(id, data);
+  }
+
+  remove(id: string) {
+    return this.companyRepository.delete(id);
   }
 }

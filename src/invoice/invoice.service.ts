@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { InvoiceRepository } from './invoice.repository';
-
+import { InvoiceType } from './enums/invoice-type.enum';
 @Injectable()
 export class InvoiceService {
   constructor(private readonly invoiceRepository: InvoiceRepository) {}
@@ -11,7 +11,7 @@ export class InvoiceService {
   //   return this.invoiceRepository.create(createInvoiceDto);
   // }
 
-  findAll(type?: 'SENT' | 'RECEIVED') {
+  findAll(type?: InvoiceType) {
     return this.invoiceRepository.findAll(type);
   }
 

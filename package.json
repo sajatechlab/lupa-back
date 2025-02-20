@@ -17,7 +17,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli",
+    "migration:run": "npm run typeorm migration:run -- -d src/config/typeorm.config.ts",
+    "migration:generate": "npm run typeorm migration:generate -- -d src/config/typeorm.config.ts",
+    "migration:create": "npm run typeorm migration:create",
+    "migration:revert": "npm run typeorm migration:revert -- -d src/config/typeorm.config.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",
@@ -28,7 +33,7 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.0.0",
-    "@prisma/client": "^6.3.0",
+    "@nestjs/typeorm": "^11.0.0",
     "@types/adm-zip": "^0.5.7",
     "@types/xlsx": "^0.0.36",
     "adm-zip": "^0.5.16",
@@ -41,10 +46,11 @@
     "cookie-parser": "^1.4.7",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
-    "prisma": "^6.3.0",
+    "pg": "^8.13.3",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "tough-cookie": "^5.1.0",
+    "typeorm": "^0.3.20",
     "web-streams-polyfill": "^4.1.0",
     "xlsx": "^0.18.5",
     "xml2js": "^0.6.2"

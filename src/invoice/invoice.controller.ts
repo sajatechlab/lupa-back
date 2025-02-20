@@ -11,7 +11,7 @@ import {
 import { InvoiceService } from './invoice.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
-
+import { InvoiceType } from './enums/invoice-type.enum';
 @Controller('invoices')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
@@ -21,7 +21,7 @@ export class InvoiceController {
   //   return this.invoiceService.create(createInvoiceDto);
   // }
   @Get()
-  findAll(@Query('type') type?: 'SENT' | 'RECEIVED') {
+  findAll(@Query('type') type?: InvoiceType) {
     return this.invoiceService.findAll(type);
   }
 
