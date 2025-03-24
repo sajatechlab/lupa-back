@@ -6,6 +6,8 @@ import { CompanyModule } from './company/company.module';
 import { InvoiceModule } from './invoice/invoice.module';
 import { AuthModule } from './auth/auth.module';
 import { TableDownloadModule } from './table-download/table-download.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtGlobalAuthGuard } from './auth/guards/jwt-global-auth.guard';
 
 @Module({
   imports: [
@@ -32,6 +34,12 @@ import { TableDownloadModule } from './table-download/table-download.module';
     InvoiceModule,
     AuthModule,
     TableDownloadModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtGlobalAuthGuard,
+    },
   ],
 })
 export class AppModule {}

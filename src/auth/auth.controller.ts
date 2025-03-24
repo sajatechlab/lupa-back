@@ -17,6 +17,7 @@ import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthExceptionFilter } from './auth.exception';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { Public } from './decorators/public.decorator';
 //import { GoogleOAuthGuard } from './google-oauth.guard';
 
 @Controller('auth')
@@ -41,6 +42,7 @@ export class AuthController {
     return signUp;
   }
 
+  @Public()
   @Post('login')
   async signIn(
     @Body() signInDto: SignInDto,

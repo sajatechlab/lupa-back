@@ -1,4 +1,3 @@
-import './polyfills';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
@@ -13,6 +12,8 @@ async function bootstrap() {
     origin: [
       'http://localhost:8080',
       'https://front-lupa-production.up.railway.app',
+      'http://localhost:8081',
+      'https://preview--friendly-fund-flow.lovable.app',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,

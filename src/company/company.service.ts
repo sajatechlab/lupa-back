@@ -18,6 +18,7 @@ export class CompanyService {
     const existingCompany = await this.companyRepository.findByNit(
       createCompanyDto.nit,
     );
+    console.log('existingCompany', existingCompany);
     if (existingCompany) {
       throw new BadRequestException('Company already exists');
     }

@@ -35,8 +35,13 @@ export class CompanyController {
   }
   @Get('by-user')
   @UseGuards(JwtAuthGuard)
-  findAllByUser(@GetUser() user: User) {
-    return this.companyService.findAllByUser(user.id);
+  async findAllByUser(@GetUser() user: User) {
+    console.log('findAllByUser', user);
+
+    const companies = await this.companyService.findAllByUser(user.id);
+    console.log('companies', companies);
+
+    return companies;
   }
 
   @Get(':id')
