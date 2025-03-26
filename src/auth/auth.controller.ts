@@ -70,7 +70,7 @@ export class AuthController {
   @UseGuards(AuthGuard())
   async logout(@Res({ passthrough: true }) response: Response) {
     response.clearCookie('jwt');
-    return 'Logout';
+    return { message: 'Successfully logged out' };
   }
 
   // @Get('google')

@@ -8,7 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { TableDownloadModule } from './table-download/table-download.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtGlobalAuthGuard } from './auth/guards/jwt-global-auth.guard';
-
+import { AttachmentsModule } from './attachments/attachments.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -34,6 +34,7 @@ import { JwtGlobalAuthGuard } from './auth/guards/jwt-global-auth.guard';
     InvoiceModule,
     AuthModule,
     TableDownloadModule,
+    AttachmentsModule,
   ],
   providers: [
     {

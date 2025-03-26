@@ -92,6 +92,12 @@ export class Invoice {
   @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
   invoicePayableAmount: number;
 
+  @Column({ type: 'boolean', default: false })
+  isPosted: boolean;
+
+  @Column({ nullable: true })
+  fileName: string;
+
   @OneToMany(() => InvoiceLine, (line) => line.invoice)
   lines: InvoiceLine[];
 }

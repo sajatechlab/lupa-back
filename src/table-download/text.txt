@@ -1,0 +1,435 @@
+Processing line: {
+  "$ns": {
+    "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+    "local": "InvoiceLine"
+  },
+  "cbc:ID": {
+    "_": 1,
+    "$": {
+      "schemeID": {
+        "name": "schemeID",
+        "value": "1",
+        "prefix": "",
+        "local": "schemeID",
+        "uri": ""
+      }
+    },
+    "$ns": {
+      "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+      "local": "ID"
+    }
+  },
+  "cbc:Note": {
+    "_": "COBRO FEDEX 2024 / BISCUITS - JUN A DIC 2024 - CLUB SOCIAL \r\nPO: 7332753099\r\nGR: 8364017",
+    "$ns": {
+      "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+      "local": "Note"
+    }
+  },
+  "cbc:InvoicedQuantity": {
+    "_": 1,
+    "$": {
+      "unitCode": {
+        "name": "unitCode",
+        "value": "NIU",
+        "prefix": "",
+        "local": "unitCode",
+        "uri": ""
+      }
+    },
+    "$ns": {
+      "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+      "local": "InvoicedQuantity"
+    }
+  },
+  "cbc:LineExtensionAmount": {
+    "_": 737613,
+    "$": {
+      "currencyID": {
+        "name": "currencyID",
+        "value": "COP",
+        "prefix": "",
+        "local": "currencyID",
+        "uri": ""
+      }
+    },
+    "$ns": {
+      "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+      "local": "LineExtensionAmount"
+    }
+  },
+  "cac:TaxTotal": {
+    "$ns": {
+      "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+      "local": "TaxTotal"
+    },
+    "cbc:TaxAmount": {
+      "_": 140146.47,
+      "$": {
+        "currencyID": {
+          "name": "currencyID",
+          "value": "COP",
+          "prefix": "",
+          "local": "currencyID",
+          "uri": ""
+        }
+      },
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+        "local": "TaxAmount"
+      }
+    },
+    "cac:TaxSubtotal": {
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "local": "TaxSubtotal"
+      },
+      "cbc:TaxableAmount": {
+        "_": 737613,
+        "$": {
+          "currencyID": {
+            "name": "currencyID",
+            "value": "COP",
+            "prefix": "",
+            "local": "currencyID",
+            "uri": ""
+          }
+        },
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+          "local": "TaxableAmount"
+        }
+      },
+      "cbc:TaxAmount": {
+        "_": 140146.47,
+        "$": {
+          "currencyID": {
+            "name": "currencyID",
+            "value": "COP",
+            "prefix": "",
+            "local": "currencyID",
+            "uri": ""
+          }
+        },
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+          "local": "TaxAmount"
+        }
+      },
+      "cac:TaxCategory": {
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+          "local": "TaxCategory"
+        },
+        "cbc:Percent": {
+          "_": 19,
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+            "local": "Percent"
+          }
+        },
+        "cac:TaxScheme": {
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+            "local": "TaxScheme"
+          },
+          "cbc:ID": {
+            "_": 1,
+            "$ns": {
+              "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+              "local": "ID"
+            }
+          },
+          "cbc:Name": {
+            "_": "IVA",
+            "$ns": {
+              "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+              "local": "Name"
+            }
+          }
+        }
+      }
+    }
+  },
+  "cac:WithholdingTaxTotal": [
+    {
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "local": "WithholdingTaxTotal"
+      },
+      "cbc:TaxAmount": {
+        "_": 81137.43,
+        "$": {
+          "currencyID": {
+            "name": "currencyID",
+            "value": "COP",
+            "prefix": "",
+            "local": "currencyID",
+            "uri": ""
+          }
+        },
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+          "local": "TaxAmount"
+        }
+      },
+      "cac:TaxSubtotal": {
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+          "local": "TaxSubtotal"
+        },
+        "cbc:TaxableAmount": {
+          "_": 737613,
+          "$": {
+            "currencyID": {
+              "name": "currencyID",
+              "value": "COP",
+              "prefix": "",
+              "local": "currencyID",
+              "uri": ""
+            }
+          },
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+            "local": "TaxableAmount"
+          }
+        },
+        "cbc:TaxAmount": {
+          "_": 81137.43,
+          "$": {
+            "currencyID": {
+              "name": "currencyID",
+              "value": "COP",
+              "prefix": "",
+              "local": "currencyID",
+              "uri": ""
+            }
+          },
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+            "local": "TaxAmount"
+          }
+        },
+        "cac:TaxCategory": {
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+            "local": "TaxCategory"
+          },
+          "cbc:Percent": {
+            "_": 11,
+            "$ns": {
+              "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+              "local": "Percent"
+            }
+          },
+          "cac:TaxScheme": {
+            "$ns": {
+              "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+              "local": "TaxScheme"
+            },
+            "cbc:ID": {
+              "_": 6,
+              "$ns": {
+                "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                "local": "ID"
+              }
+            },
+            "cbc:Name": {
+              "_": "ReteFuente",
+              "$ns": {
+                "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                "local": "Name"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "local": "WithholdingTaxTotal"
+      },
+      "cbc:TaxAmount": {
+        "_": 110641.95,
+        "$": {
+          "currencyID": {
+            "name": "currencyID",
+            "value": "COP",
+            "prefix": "",
+            "local": "currencyID",
+            "uri": ""
+          }
+        },
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+          "local": "TaxAmount"
+        }
+      },
+      "cac:TaxSubtotal": {
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+          "local": "TaxSubtotal"
+        },
+        "cbc:TaxableAmount": {
+          "_": 737613,
+          "$": {
+            "currencyID": {
+              "name": "currencyID",
+              "value": "COP",
+              "prefix": "",
+              "local": "currencyID",
+              "uri": ""
+            }
+          },
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+            "local": "TaxableAmount"
+          }
+        },
+        "cbc:TaxAmount": {
+          "_": 110641.95,
+          "$": {
+            "currencyID": {
+              "name": "currencyID",
+              "value": "COP",
+              "prefix": "",
+              "local": "currencyID",
+              "uri": ""
+            }
+          },
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+            "local": "TaxAmount"
+          }
+        },
+        "cac:TaxCategory": {
+          "$ns": {
+            "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+            "local": "TaxCategory"
+          },
+          "cbc:Percent": {
+            "_": 15,
+            "$ns": {
+              "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+              "local": "Percent"
+            }
+          },
+          "cac:TaxScheme": {
+            "$ns": {
+              "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+              "local": "TaxScheme"
+            },
+            "cbc:ID": {
+              "_": 5,
+              "$ns": {
+                "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                "local": "ID"
+              }
+            },
+            "cbc:Name": {
+              "_": "ReteIVA",
+              "$ns": {
+                "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                "local": "Name"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "cac:Item": {
+    "$ns": {
+      "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+      "local": "Item"
+    },
+    "cbc:Description": {
+      "_": "Venta de Servicio de Consultoria en mercadeo 7145105",
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+        "local": "Description"
+      }
+    },
+    "cac:SellersItemIdentification": {
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "local": "SellersItemIdentification"
+      },
+      "cbc:ID": {
+        "_": 7145105,
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+          "local": "ID"
+        }
+      }
+    },
+    "cac:StandardItemIdentification": {
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+        "local": "StandardItemIdentification"
+      },
+      "cbc:ID": {
+        "_": 7145105,
+        "$": {
+          "schemeID": {
+            "name": "schemeID",
+            "value": "999",
+            "prefix": "",
+            "local": "schemeID",
+            "uri": ""
+          },
+          "schemeName": {
+            "name": "schemeName",
+            "value": "Estándar de adopción del contribuyente",
+            "prefix": "",
+            "local": "schemeName",
+            "uri": ""
+          }
+        },
+        "$ns": {
+          "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+          "local": "ID"
+        }
+      }
+    }
+  },
+  "cac:Price": {
+    "$ns": {
+      "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+      "local": "Price"
+    },
+    "cbc:PriceAmount": {
+      "_": 737613,
+      "$": {
+        "currencyID": {
+          "name": "currencyID",
+          "value": "COP",
+          "prefix": "",
+          "local": "currencyID",
+          "uri": ""
+        }
+      },
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+        "local": "PriceAmount"
+      }
+    },
+    "cbc:BaseQuantity": {
+      "_": 1,
+      "$": {
+        "unitCode": {
+          "name": "unitCode",
+          "value": "NIU",
+          "prefix": "",
+          "local": "unitCode",
+          "uri": ""
+        }
+      },
+      "$ns": {
+        "uri": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+        "local": "BaseQuantity"
+      }
+    }
+  }
+}

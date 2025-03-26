@@ -21,4 +21,21 @@ export class InvoiceLineRepository {
       relations: ['invoice'],
     });
   }
+
+  async getLinesByInvoice(invoiceId: string): Promise<any[]> {
+    const lines = await this.invoiceLineRepository.find({
+      where: { invoiceId: invoiceId },
+    });
+    return lines.map((line) => {
+      return {
+        lineId: line.lineID,
+        description: line.itemDescription,
+        itemId: line.standardItemID,
+        quantity: line.quantity,
+        unitPrice: line.priceAmount,
+        taxAmount: line.taxTotalAmount,
+        salesUnitPrice: line.lineExtensionAmount,
+      };
+    });
+  }
 }

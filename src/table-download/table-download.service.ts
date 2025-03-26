@@ -19,6 +19,7 @@ import { Company } from '../company/entities/company.entity';
 import { Invoice } from '../invoice/entities/invoice.entity';
 import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
 import { SoftwareProvider } from '../software-provider/entities/software-provider.entity';
+import { AttachmentsService } from 'src/attachments/attachments.service';
 
 enum InvoiceType {
   RECEIVED = 'RECEIVED',
@@ -39,6 +40,7 @@ export class TableDownloadService {
     private invoiceLineRepository: Repository<InvoiceLine>,
     @InjectRepository(SoftwareProvider)
     private softwareProviderRepository: Repository<SoftwareProvider>,
+    private readonly attachmentsService: AttachmentsService,
   ) {
     // Initialize Axios with cookie jar support
     const jar = new CookieJar();
@@ -310,11 +312,18 @@ export class TableDownloadService {
       const zipEntries = zip.getEntries();
 
       for (const entry of zipEntries) {
+        const fileBuffer = entry.getData();
+        const fileName = entry.entryName.split('.')[0];
+        const pdfFileName = `${fileName}.pdf`;
+        if (entry.entryName.endsWith('.pdf')) {
+          await this.attachmentsService.uploadFile(fileBuffer, pdfFileName);
+        }
+        // Parse the XML content
         if (entry.entryName.endsWith('.xml')) {
           const xmlContent = entry.getData().toString('utf8');
 
           // Step 3: Parse the XML content
-          await this.parseAndSaveXml(xmlContent, type);
+          await this.parseAndSaveXml(xmlContent, type, pdfFileName);
         }
       }
     } catch (error) {
@@ -325,11 +334,17 @@ export class TableDownloadService {
   private async parseAndSaveXml(
     xmlContent: string,
     type: 'Received' | 'Sent',
+    fileName: string,
   ): Promise<void> {
     const parser = new xml2js.Parser({
       explicitArray: false,
       trim: true,
       mergeAttrs: false,
+      tagNameProcessors: [],
+      attrNameProcessors: [],
+      attrValueProcessors: [xml2js.processors.parseNumbers],
+      valueProcessors: [xml2js.processors.parseNumbers],
+      xmlns: true,
     });
 
     parser.parseString(xmlContent, async (err, r) => {
@@ -385,23 +400,24 @@ export class TableDownloadService {
       }
 
       // Create Invoice
-      const invoiceData = this.createInvoice(
-        result,
-        companyData,
-        thirdPartyData,
-        type,
-      );
-      const existingInvoice = await this.invoiceRepository.findOne({
-        where: { uuid: invoiceData.uuid },
-      });
+      // const invoiceData = this.createInvoice(
+      //   result,
+      //   companyData,
+      //   thirdPartyData,
+      //   type,
+      //   fileName,
+      // );
+      // const existingInvoice = await this.invoiceRepository.findOne({
+      //   where: { uuid: invoiceData.uuid },
+      // });
 
-      if (!existingInvoice) {
-        await this.invoiceRepository.save(invoiceData);
+      // if (!existingInvoice) {
+      //   await this.invoiceRepository.save(invoiceData);
 
-        // Create Invoice Lines
-        const invoiceLines = this.createInvoiceLines(result);
-        await this.invoiceLineRepository.save(invoiceLines);
-      }
+      // Create Invoice Lines
+      const invoiceLines = this.createInvoiceLines(result);
+      await this.invoiceLineRepository.save(invoiceLines);
+      // }
 
       // Create or update Software Provider
       const softwareProviderData = {
@@ -581,6 +597,7 @@ export class TableDownloadService {
     company: Company,
     thirdParty: Company,
     type: 'Received' | 'Sent',
+    fileName: string,
   ) {
     return {
       uuid: result['cbc:UUID']._,
@@ -644,160 +661,193 @@ export class TableDownloadService {
         parseFloat(
           result['cac:LegalMonetaryTotal']?.['cbc:PayableAmount']?._,
         ) || 0,
+      fileName,
     };
   }
 
   private createInvoiceLines(result: any) {
-    if (!Array.isArray(result['cac:InvoiceLine'])) {
-      const line = result['cac:InvoiceLine'];
+    // First check if InvoiceLine exists in the result
+    const invoiceLines = result['cac:InvoiceLine'] || result['InvoiceLine'];
+    if (!invoiceLines) {
+      console.log('No invoice lines found in result:', result);
+      return [];
+    }
+
+    if (!Array.isArray(invoiceLines)) {
+      console.log('Processing single invoice line');
       return [
-        {
-          id: crypto.randomUUID(),
-          invoiceId: result['cbc:UUID']._,
-          lineID: line['cbc:ID']?._,
-          itemDescription: line['cac:Item']?.['cbc:Description']?._,
-          quantity: line['cbc:InvoicedQuantity']?._,
-          note: line['cbc:Note']?._,
-          invoicedQuantityUnitCode:
-            line['cbc:InvoicedQuantity']?.['@_unitCode'],
-          lineExtensionAmount: line['cbc:LineExtensionAmount']?._,
-          buyersItemID:
-            line['cac:Item']?.['cbc:BuyersItemIdentification']?.['cbc:ID']?._,
-          standardItemID:
-            line['cac:Item']?.['cac:StandardItemIdentification']?.['cbc:ID']?._,
-          standardItemSchemeID:
-            line['cac:Item']?.['cac:StandardItemIdentification']?.['cbc:ID']?.[
-              '@_schemeID'
-            ],
-          standardItemSchemeName:
-            line['cac:Item']?.['cac:StandardItemIdentification']?.['cbc:ID']?.[
-              '@_schemeName'
-            ],
-          taxTotalAmount: line['cac:TaxTotal']?.[0]?.['cbc:TaxAmount']?._,
-          taxTotalAmountCurrencyID:
-            line['cac:TaxTotal']?.[0]?.['cbc:TaxAmount']?.['@_currencyID'],
-          taxableAmount:
-            line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-              'cbc:TaxableAmount'
-            ]?._,
-          taxableAmountCurrencyID:
-            line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.['@_currencyID'],
-          taxSchemeID:
-            line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-              'cac:TaxCategory'
-            ]?.['cac:TaxScheme']?.['cbc:ID']?._,
-          taxSchemeName:
-            line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-              'cac:TaxCategory'
-            ]?.['cac:TaxScheme']?.['cbc:Name']?._,
-          priceAmount: line['cac:Price']?.['cbc:PriceAmount']?._,
-          priceAmountCurrencyID:
-            line['cac:Price']?.['cbc:PriceAmount']?.['@_currencyID'],
-          allowanceChargeID: line['cac:AllowanceCharge']?.[0]?.['cbc:ID']?._,
-          allowanceChargeIndicator:
-            line['cac:AllowanceCharge']?.[0]?.['cbc:ChargeIndicator']?._ ===
-            'true',
-          allowanceChargeMultiplierFactorNumeric:
-            line['cac:AllowanceCharge']?.[0]?.['cbc:MultiplierFactorNumeric']
-              ?._,
-          allowanceChargeAmount:
-            line['cac:AllowanceCharge']?.[0]?.['cbc:Amount']?._,
-          allowanceChargeAmountCurrency:
-            line['cac:AllowanceCharge']?.[0]?.['cbc:Amount']?.['@_currencyID'],
-          allowanceChargeBaseAmount:
-            line['cac:AllowanceCharge']?.[0]?.['cbc:BaseAmount']?._,
-          withholdingTaxTotalAmount:
-            line['cac:WithholdingTaxTotal']?.[0]?.['cbc:TaxAmount']?._,
-          withholdingTaxTotalAmountCurrency:
-            line['cac:WithholdingTaxTotal']?.[0]?.['cbc:TaxAmount']?.[
-              '@_currencyID'
-            ],
-          withholdingTaxableAmount:
-            line['cac:WithholdingTaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-              'cbc:TaxableAmount'
-            ]?._,
-          withholdingTaxPercent:
-            line['cac:WithholdingTaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-              'cbc:Percent'
-            ]?._,
-          withholdingTaxSchemeID:
-            line['cac:WithholdingTaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-              'cac:TaxCategory'
-            ]?.['cac:TaxScheme']?.['cbc:ID']?._,
-        },
+        this.processInvoiceLine(
+          invoiceLines,
+          result['cbc:UUID']?._ || result['UUID']?._,
+        ),
       ];
     }
-    return result['cac:InvoiceLine'].map((line: any) => ({
+
+    console.log('Processing multiple invoice lines');
+    return invoiceLines.map((line: any) =>
+      this.processInvoiceLine(line, result['cbc:UUID']?._ || result['UUID']?._),
+    );
+  }
+
+  private processInvoiceLine(line: any, invoiceUuid: string) {
+    if (!line) {
+      console.log('Empty line received');
+      return null;
+    }
+
+    // Helper function to safely get value from nested structure
+    const getNestedValue = (obj: any, key: string) => {
+      if (!obj) return null;
+      // Try with namespace prefix
+      const nsKey = `cbc:${key}`;
+      const nsValue = obj[nsKey];
+      // Try without namespace prefix
+      const value = obj[key];
+
+      const target = nsValue || value;
+      if (!target) return null;
+
+      // Handle both direct values and nested structures
+      if (typeof target === 'object') {
+        return target._ || target.__text;
+      }
+      return target;
+    };
+
+    // Helper function to get attribute from nested structure
+    const getAttribute = (obj: any, key: string, attr: string) => {
+      if (!obj) return null;
+      // Try with namespace prefix
+      const nsKey = `cbc:${key}`;
+      const nsValue = obj[nsKey];
+      // Try without namespace prefix
+      const value = obj[key];
+
+      const target = nsValue || value;
+      if (!target || !target.$) return null;
+
+      // Handle both formats of attributes
+      return (
+        target.$[attr]?.value || target.$[`@_${attr}`] || target[`@_${attr}`]
+      );
+    };
+
+    // Helper function to safely parse float values
+    const parseFloatSafe = (value: any) => {
+      if (!value) return null;
+      const numStr =
+        typeof value === 'object' ? value._ || value.__text : value;
+      return isNaN(parseFloat(numStr)) ? null : parseFloat(numStr);
+    };
+
+    // Process note - handle both string and object formats
+    const note = getNestedValue(line, 'Note');
+
+    // Get values from the line object
+    const lineID = getNestedValue(line, 'ID');
+    const quantity = parseFloatSafe(
+      line['cbc:InvoicedQuantity']?._ || line['InvoicedQuantity']?._,
+    );
+    const unitCode = getAttribute(line, 'InvoicedQuantity', 'unitCode');
+    const lineExtensionAmount = parseFloatSafe(
+      line['cbc:LineExtensionAmount']?._ || line['LineExtensionAmount']?._,
+    );
+    const currencyID = getAttribute(line, 'LineExtensionAmount', 'currencyID');
+
+    // Get item description
+    const itemDescription = getNestedValue(
+      line['cac:Item'] || line.Item,
+      'Description',
+    );
+
+    // Get standard item identification
+    const standardItem =
+      (line['cac:Item'] || line.Item)?.['cac:StandardItemIdentification'] ||
+      (line['cac:Item'] || line.Item)?.StandardItemIdentification;
+    const standardItemID = standardItem?.['cbc:ID']?._ || standardItem?.ID?._;
+    const standardItemSchemeID =
+      standardItem?.['cbc:ID']?.$.schemeID?.value ||
+      standardItem?.ID?.$.schemeID?.value ||
+      standardItem?.['cbc:ID']?.['@_schemeID'];
+
+    // Get tax information
+    const taxTotal = line['cac:TaxTotal'] || line.TaxTotal;
+    const taxAmount = parseFloatSafe(
+      taxTotal?.['cbc:TaxAmount']?._ || taxTotal?.TaxAmount?._,
+    );
+    const taxAmountCurrencyID = getAttribute(
+      taxTotal,
+      'TaxAmount',
+      'currencyID',
+    );
+
+    // Get tax subtotal information
+    const taxSubtotal = taxTotal?.['cac:TaxSubtotal'] || taxTotal?.TaxSubtotal;
+    const taxableAmount = parseFloatSafe(
+      taxSubtotal?.['cbc:TaxableAmount']?._ || taxSubtotal?.TaxableAmount?._,
+    );
+    const taxableAmountCurrencyID = getAttribute(
+      taxSubtotal,
+      'TaxableAmount',
+      'currencyID',
+    );
+
+    // Get tax category information
+    const taxCategory =
+      taxSubtotal?.['cac:TaxCategory'] || taxSubtotal?.TaxCategory;
+    const taxPercent = parseFloatSafe(
+      taxCategory?.['cbc:Percent']?._ || taxCategory?.Percent?._,
+    );
+
+    // Get tax scheme information
+    const taxScheme = taxCategory?.['cac:TaxScheme'] || taxCategory?.TaxScheme;
+    const taxSchemeID = getNestedValue(taxScheme, 'ID');
+    const taxSchemeName = getNestedValue(taxScheme, 'Name');
+
+    // Get price information
+    const price = line['cac:Price'] || line.Price;
+    const priceAmount = parseFloatSafe(
+      price?.['cbc:PriceAmount']?._ || price?.PriceAmount?._,
+    );
+    const priceAmountCurrencyID = getAttribute(
+      price,
+      'PriceAmount',
+      'currencyID',
+    );
+    const baseQuantity = parseFloatSafe(
+      price?.['cbc:BaseQuantity']?._ || price?.BaseQuantity?._,
+    );
+    const baseQuantityUnitCode = getAttribute(
+      price,
+      'BaseQuantity',
+      'unitCode',
+    );
+
+    return {
       id: crypto.randomUUID(),
-      invoiceId: result['cbc:UUID']._,
-      lineID: line['cbc:ID']?._,
-      itemDescription: line['cac:Item']?.['cbc:Description']?._,
-      quantity: line['cbc:InvoicedQuantity']?._,
-      note: line['cbc:Note']?._,
-      invoicedQuantityUnitCode: line['cbc:InvoicedQuantity']?.['@_unitCode'],
-      lineExtensionAmount: line['cbc:LineExtensionAmount']?._,
-      buyersItemID:
-        line['cac:Item']?.['cbc:BuyersItemIdentification']?.['cbc:ID']?._,
-      standardItemID:
-        line['cac:Item']?.['cac:StandardItemIdentification']?.['cbc:ID']?._,
-      standardItemSchemeID:
-        line['cac:Item']?.['cac:StandardItemIdentification']?.['cbc:ID']?.[
-          '@_schemeID'
-        ],
-      standardItemSchemeName:
-        line['cac:Item']?.['cac:StandardItemIdentification']?.['cbc:ID']?.[
-          '@_schemeName'
-        ],
-      taxTotalAmount: line['cac:TaxTotal']?.[0]?.['cbc:TaxAmount']?._,
-      taxTotalAmountCurrencyID:
-        line['cac:TaxTotal']?.[0]?.['cbc:TaxAmount']?.['@_currencyID'],
-      taxableAmount:
-        line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.['cbc:TaxableAmount']
-          ?._,
-      taxableAmountCurrencyID:
-        line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.['cbc:TaxableAmount']?.[
-          '@_currencyID'
-        ],
-      taxSchemeID:
-        line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.['cac:TaxCategory']?.[
-          'cac:TaxScheme'
-        ]?.['cbc:ID']?._,
-      taxSchemeName:
-        line['cac:TaxTotal']?.[0]?.['cac:TaxSubtotal']?.['cac:TaxCategory']?.[
-          'cac:TaxScheme'
-        ]?.['cbc:Name']?._,
-      priceAmount: line['cac:Price']?.['cbc:PriceAmount']?._,
-      priceAmountCurrencyID:
-        line['cac:Price']?.['cbc:PriceAmount']?.['@_currencyID'],
-      allowanceChargeID: line['cac:AllowanceCharge']?.[0]?.['cbc:ID']?._,
-      allowanceChargeIndicator:
-        line['cac:AllowanceCharge']?.[0]?.['cbc:ChargeIndicator']?._ === 'true',
-      allowanceChargeMultiplierFactorNumeric:
-        line['cac:AllowanceCharge']?.[0]?.['cbc:MultiplierFactorNumeric']?._,
-      allowanceChargeAmount:
-        line['cac:AllowanceCharge']?.[0]?.['cbc:Amount']?._,
-      allowanceChargeAmountCurrency:
-        line['cac:AllowanceCharge']?.[0]?.['cbc:Amount']?.['@_currencyID'],
-      allowanceChargeBaseAmount:
-        line['cac:AllowanceCharge']?.[0]?.['cbc:BaseAmount']?._,
-      withholdingTaxTotalAmount:
-        line['cac:WithholdingTaxTotal']?.[0]?.['cbc:TaxAmount']?._,
-      withholdingTaxTotalAmountCurrency:
-        line['cac:WithholdingTaxTotal']?.[0]?.['cbc:TaxAmount']?.[
-          '@_currencyID'
-        ],
-      withholdingTaxableAmount:
-        line['cac:WithholdingTaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-          'cbc:TaxableAmount'
-        ]?._,
-      withholdingTaxPercent:
-        line['cac:WithholdingTaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-          'cac:TaxCategory'
-        ]?.['cbc:Percent']?._,
-      withholdingTaxSchemeID:
-        line['cac:WithholdingTaxTotal']?.[0]?.['cac:TaxSubtotal']?.[
-          'cac:TaxCategory'
-        ]?.['cac:TaxScheme']?.['cbc:ID']?._,
-    }));
+      invoiceId: invoiceUuid,
+      lineID,
+      itemDescription,
+      quantity,
+      note,
+      invoicedQuantityUnitCode: unitCode,
+      lineExtensionAmount,
+      lineExtensionAmountCurrencyID: currencyID,
+      standardItemID,
+      standardItemSchemeID,
+      taxTotalAmount: taxAmount,
+      taxTotalAmountCurrencyID: taxAmountCurrencyID,
+      taxableAmount,
+      taxableAmountCurrencyID: taxableAmountCurrencyID,
+      taxAmount,
+      taxAmountCurrencyID: taxAmountCurrencyID,
+      taxPercent,
+      taxSchemeID,
+      taxSchemeName,
+      priceAmount,
+      priceAmountCurrencyID,
+      baseQuantity,
+      baseQuantityUnitCode,
+    };
   }
 }

@@ -7,11 +7,12 @@ import { Company } from '../company/entities/company.entity';
 import { Invoice } from '../invoice/entities/invoice.entity';
 import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
 import { SoftwareProvider } from '../software-provider/entities/software-provider.entity';
-
+import { AttachmentsModule } from '../attachments/attachments.module';
 @Module({
   imports: [
     HttpModule,
     TypeOrmModule.forFeature([Company, Invoice, InvoiceLine, SoftwareProvider]),
+    AttachmentsModule,
   ],
   controllers: [TableDownloadController],
   providers: [TableDownloadService],
