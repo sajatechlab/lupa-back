@@ -400,24 +400,24 @@ export class TableDownloadService {
       }
 
       // Create Invoice
-      // const invoiceData = this.createInvoice(
-      //   result,
-      //   companyData,
-      //   thirdPartyData,
-      //   type,
-      //   fileName,
-      // );
-      // const existingInvoice = await this.invoiceRepository.findOne({
-      //   where: { uuid: invoiceData.uuid },
-      // });
+      const invoiceData = this.createInvoice(
+        result,
+        companyData,
+        thirdPartyData,
+        type,
+        fileName,
+      );
+      const existingInvoice = await this.invoiceRepository.findOne({
+        where: { uuid: invoiceData.uuid },
+      });
 
-      // if (!existingInvoice) {
-      //   await this.invoiceRepository.save(invoiceData);
+      if (!existingInvoice) {
+        await this.invoiceRepository.save(invoiceData);
 
-      // Create Invoice Lines
-      const invoiceLines = this.createInvoiceLines(result);
-      await this.invoiceLineRepository.save(invoiceLines);
-      // }
+        // Create Invoice Lines
+        const invoiceLines = this.createInvoiceLines(result);
+        await this.invoiceLineRepository.save(invoiceLines);
+      }
 
       // Create or update Software Provider
       const softwareProviderData = {
@@ -449,22 +449,22 @@ export class TableDownloadService {
       industryClassificationCode:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cbc:IndustryClassificationCode'
-        ],
+        ]?._,
       physicalLocationID:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PhysicalLocation'
-        ]?.['cac:Address']?.['cbc:ID'],
+        ]?.['cac:Address']?.['cbc:ID']?._,
       countrySubentityCode:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PhysicalLocation'
-        ]?.['cac:Address']?.['cbc:CountrySubentityCode'],
+        ]?.['cac:Address']?.['cbc:CountrySubentityCode']?._,
       line: result['cac:AccountingSupplierParty']?.['cac:Party']?.[
         'cac:PhysicalLocation'
-      ]?.['cac:Address']?.['cac:AddressLine']?.['cbc:Line'],
+      ]?.['cac:Address']?.['cac:AddressLine']?.['cbc:Line']?._,
       registrationName:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:RegistrationName'],
+        ]?.['cbc:RegistrationName']?._,
       taxLevelCode:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
@@ -472,15 +472,15 @@ export class TableDownloadService {
       taxSchemeID:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cac:TaxScheme']?.['cbc:ID'],
+        ]?.['cac:TaxScheme']?.['cbc:ID']?._,
       taxSchemeName:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cac:TaxScheme']?.['cbc:Name'],
+        ]?.['cac:TaxScheme']?.['cbc:Name']?._,
       companyID:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:CompanyID']._,
+        ]?.['cbc:CompanyID']?._,
       companyIDSchemeID:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
@@ -496,23 +496,23 @@ export class TableDownloadService {
       contactName:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.['cac:Contact']?.[
           'cbc:Name'
-        ],
+        ]?._,
       contactTelephone:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.['cac:Contact']?.[
           'cbc:Telephone'
-        ],
+        ]?._,
       contactElectronicMail:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.['cac:Contact']?.[
           'cbc:ElectronicMail'
-        ],
+        ]?._,
       nit:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:CompanyID']._ || '',
+        ]?.['cbc:CompanyID']?._ || '',
       name:
         result['cac:AccountingSupplierParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:RegistrationName'] || '',
+        ]?.['cbc:RegistrationName']?._ || '',
     };
   }
 
@@ -525,22 +525,22 @@ export class TableDownloadService {
       industryClassificationCode:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cbc:IndustryClassificationCode'
-        ],
+        ]?._,
       physicalLocationID:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PhysicalLocation'
-        ]?.['cac:Address']?.['cbc:ID'],
+        ]?.['cac:Address']?.['cbc:ID']?._,
       countrySubentityCode:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PhysicalLocation'
-        ]?.['cac:Address']?.['cbc:CountrySubentityCode'],
+        ]?.['cac:Address']?.['cbc:CountrySubentityCode']?._,
       line: result['cac:AccountingCustomerParty']?.['cac:Party']?.[
         'cac:PhysicalLocation'
-      ]?.['cac:Address']?.['cac:AddressLine']?.['cbc:Line'],
+      ]?.['cac:Address']?.['cac:AddressLine']?.['cbc:Line']?._,
       registrationName:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:RegistrationName'],
+        ]?.['cbc:RegistrationName']?._,
       taxLevelCode:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
@@ -548,15 +548,15 @@ export class TableDownloadService {
       taxSchemeID:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cac:TaxScheme']?.['cbc:ID'],
+        ]?.['cac:TaxScheme']?.['cbc:ID']?._,
       taxSchemeName:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cac:TaxScheme']?.['cbc:Name'],
+        ]?.['cac:TaxScheme']?.['cbc:Name']?._,
       companyID:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:CompanyID']._,
+        ]?.['cbc:CompanyID']?._,
       companyIDSchemeID:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
@@ -572,23 +572,23 @@ export class TableDownloadService {
       contactName:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.['cac:Contact']?.[
           'cbc:Name'
-        ],
+        ]?._,
       contactTelephone:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.['cac:Contact']?.[
           'cbc:Telephone'
-        ],
+        ]?._,
       contactElectronicMail:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.['cac:Contact']?.[
           'cbc:ElectronicMail'
-        ],
+        ]?._,
       nit:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:CompanyID']._ || '',
+        ]?.['cbc:CompanyID']?._ || '',
       name:
         result['cac:AccountingCustomerParty']?.['cac:Party']?.[
           'cac:PartyTaxScheme'
-        ]?.['cbc:RegistrationName'] || '',
+        ]?.['cbc:RegistrationName']?._ || '',
     };
   }
 
@@ -599,68 +599,112 @@ export class TableDownloadService {
     type: 'Received' | 'Sent',
     fileName: string,
   ) {
+    // Helper function to safely get value from nested structure
+    const getNestedValue = (obj: any, key: string) => {
+      if (!obj) return null;
+      const nsKey = `cbc:${key}`;
+      const nsValue = obj[nsKey];
+      const value = obj[key];
+      const target = nsValue || value;
+      if (!target) return null;
+      if (typeof target === 'object') {
+        return target._ || target.__text;
+      }
+      return target;
+    };
+
+    // Helper function to get attribute from nested structure
+    const getAttribute = (obj: any, key: string, attr: string) => {
+      if (!obj) return null;
+      const nsKey = `cbc:${key}`;
+      const nsValue = obj[nsKey];
+      const value = obj[key];
+      const target = nsValue || value;
+      if (!target || !target.$) return null;
+      return (
+        target.$[attr]?.value || target.$[`@_${attr}`] || target[`@_${attr}`]
+      );
+    };
+
+    // Helper function to safely parse float values
+    const parseFloatSafe = (value: any) => {
+      if (!value) return 0;
+      const numStr =
+        typeof value === 'object' ? value._ || value.__text : value;
+      return isNaN(parseFloat(numStr)) ? 0 : parseFloat(numStr);
+    };
+
     return {
-      uuid: result['cbc:UUID']._,
-      invoiceNumber: result['cbc:ID'] || result['cbc:ID']._,
+      uuid: getNestedValue(result, 'UUID'),
+      invoiceNumber: getNestedValue(result, 'ID'),
       companyId: company.id,
       thirdPartyId: thirdParty.id,
       type: type === 'Received' ? InvoiceType.RECEIVED : InvoiceType.SENT,
-      issueDate: new Date(result['cbc:IssueDate']),
+      issueDate: new Date(getNestedValue(result, 'IssueDate')),
       issueTime: new Date(
-        `1970-01-01T${result['cbc:IssueTime'] || '00:00:00'}`,
+        `1970-01-01T${getNestedValue(result, 'IssueTime') || '00:00:00'}`,
       ),
-      dueDate: result['cbc:DueDate']
-        ? new Date(result['cbc:DueDate'])
-        : new Date(result['cbc:IssueDate']),
-      invoiceTypeCode: result['cbc:InvoiceTypeCode']?._ || '',
-      note:
-        result['cbc:Note'] && Array.isArray(result['cbc:Note'])
-          ? result['cbc:Note'].join(', ')
-          : result['cbc:Note'],
-      documentCurrencyCode: result['cbc:DocumentCurrencyCode']?._ || '',
-      invoiceAllowanceChargeMultiplierFactorNumeric:
-        result['cac:AllowanceCharge']?.['cbc:MultiplierFactorNumeric'],
-      invoiceAllowanceChargeAmount:
-        parseFloat(result['cac:AllowanceCharge']?.['cbc:Amount']?._) || 0,
-      invoiceAllowanceChargeAmountCurrencyID:
-        result['cac:AllowanceCharge']?.['cbc:Amount']?.['@_currencyID'],
-      invoiceAllowanceChargeBaseAmount:
-        parseFloat(result['cac:AllowanceCharge']?.['cbc:BaseAmount']?._) || 0,
-      invoiceAllowanceChargeBaseAmountCurrencyID:
-        result['cac:AllowanceCharge']?.['cbc:BaseAmount']?.['@_currencyID'],
-      invoiceTaxTotalTaxAmount:
-        parseFloat(result['cac:TaxTotal']?.['cbc:TaxAmount']?._) || 0,
-      invoiceTaxTotalTaxAmountCurrencyID:
-        result['cac:TaxTotal']?.['cbc:TaxAmount']?.['@_currencyID'],
-      invoiceWithholdingTaxTotalTaxAmount:
-        parseFloat(result['cac:WithholdingTaxTotal']?.['cbc:TaxAmount']?._) ||
-        0,
-      invoiceWithholdingTaxTotalTaxAmountCurrencyID:
-        result['cac:WithholdingTaxTotal']?.['cbc:TaxAmount']?.['@_currencyID'],
-      invoiceLineExtensionAmount:
-        parseFloat(
-          result['cac:LegalMonetaryTotal']?.['cbc:LineExtensionAmount']?._,
-        ) || 0,
-      invoiceTaxExclusiveAmount:
-        parseFloat(
-          result['cac:LegalMonetaryTotal']?.['cbc:TaxExclusiveAmount']?._,
-        ) || 0,
-      invoiceTaxInclusiveAmount:
-        parseFloat(
-          result['cac:LegalMonetaryTotal']?.['cbc:TaxInclusiveAmount']?._,
-        ) || 0,
-      invoiceAllowanceTotalAmount:
-        parseFloat(
-          result['cac:LegalMonetaryTotal']?.['cbc:AllowanceTotalAmount']?._,
-        ) || 0,
-      invoiceChargeTotalAmount:
-        parseFloat(
-          result['cac:LegalMonetaryTotal']?.['cbc:ChargeTotalAmount']?._,
-        ) || 0,
-      invoicePayableAmount:
-        parseFloat(
-          result['cac:LegalMonetaryTotal']?.['cbc:PayableAmount']?._,
-        ) || 0,
+      dueDate: getNestedValue(result, 'DueDate')
+        ? new Date(getNestedValue(result, 'DueDate'))
+        : new Date(getNestedValue(result, 'IssueDate')),
+      invoiceTypeCode: getNestedValue(result, 'InvoiceTypeCode') || '',
+      note: getNestedValue(result, 'Note'),
+      documentCurrencyCode:
+        getNestedValue(result, 'DocumentCurrencyCode') || '',
+      invoiceAllowanceChargeMultiplierFactorNumeric: getNestedValue(
+        result['cac:AllowanceCharge'],
+        'MultiplierFactorNumeric',
+      ),
+      invoiceAllowanceChargeAmount: parseFloatSafe(
+        result['cac:AllowanceCharge']?.['cbc:Amount'],
+      ),
+      invoiceAllowanceChargeAmountCurrencyID: getAttribute(
+        result['cac:AllowanceCharge'],
+        'Amount',
+        'currencyID',
+      ),
+      invoiceAllowanceChargeBaseAmount: parseFloatSafe(
+        result['cac:AllowanceCharge']?.['cbc:BaseAmount'],
+      ),
+      invoiceAllowanceChargeBaseAmountCurrencyID: getAttribute(
+        result['cac:AllowanceCharge'],
+        'BaseAmount',
+        'currencyID',
+      ),
+      invoiceTaxTotalTaxAmount: parseFloatSafe(
+        result['cac:TaxTotal']?.['cbc:TaxAmount'],
+      ),
+      invoiceTaxTotalTaxAmountCurrencyID: getAttribute(
+        result['cac:TaxTotal'],
+        'TaxAmount',
+        'currencyID',
+      ),
+      invoiceWithholdingTaxTotalTaxAmount: parseFloatSafe(
+        result['cac:WithholdingTaxTotal']?.['cbc:TaxAmount'],
+      ),
+      invoiceWithholdingTaxTotalTaxAmountCurrencyID: getAttribute(
+        result['cac:WithholdingTaxTotal'],
+        'TaxAmount',
+        'currencyID',
+      ),
+      invoiceLineExtensionAmount: parseFloatSafe(
+        result['cac:LegalMonetaryTotal']?.['cbc:LineExtensionAmount'],
+      ),
+      invoiceTaxExclusiveAmount: parseFloatSafe(
+        result['cac:LegalMonetaryTotal']?.['cbc:TaxExclusiveAmount'],
+      ),
+      invoiceTaxInclusiveAmount: parseFloatSafe(
+        result['cac:LegalMonetaryTotal']?.['cbc:TaxInclusiveAmount'],
+      ),
+      invoiceAllowanceTotalAmount: parseFloatSafe(
+        result['cac:LegalMonetaryTotal']?.['cbc:AllowanceTotalAmount'],
+      ),
+      invoiceChargeTotalAmount: parseFloatSafe(
+        result['cac:LegalMonetaryTotal']?.['cbc:ChargeTotalAmount'],
+      ),
+      invoicePayableAmount: parseFloatSafe(
+        result['cac:LegalMonetaryTotal']?.['cbc:PayableAmount'],
+      ),
       fileName,
     };
   }
@@ -678,14 +722,14 @@ export class TableDownloadService {
       return [
         this.processInvoiceLine(
           invoiceLines,
-          result['cbc:UUID']?._ || result['UUID']?._,
+          this.getNestedValue(result, 'UUID'),
         ),
       ];
     }
 
     console.log('Processing multiple invoice lines');
     return invoiceLines.map((line: any) =>
-      this.processInvoiceLine(line, result['cbc:UUID']?._ || result['UUID']?._),
+      this.processInvoiceLine(line, this.getNestedValue(result, 'UUID')),
     );
   }
 
@@ -698,16 +742,11 @@ export class TableDownloadService {
     // Helper function to safely get value from nested structure
     const getNestedValue = (obj: any, key: string) => {
       if (!obj) return null;
-      // Try with namespace prefix
       const nsKey = `cbc:${key}`;
       const nsValue = obj[nsKey];
-      // Try without namespace prefix
       const value = obj[key];
-
       const target = nsValue || value;
       if (!target) return null;
-
-      // Handle both direct values and nested structures
       if (typeof target === 'object') {
         return target._ || target.__text;
       }
@@ -717,16 +756,11 @@ export class TableDownloadService {
     // Helper function to get attribute from nested structure
     const getAttribute = (obj: any, key: string, attr: string) => {
       if (!obj) return null;
-      // Try with namespace prefix
       const nsKey = `cbc:${key}`;
       const nsValue = obj[nsKey];
-      // Try without namespace prefix
       const value = obj[key];
-
       const target = nsValue || value;
       if (!target || !target.$) return null;
-
-      // Handle both formats of attributes
       return (
         target.$[attr]?.value || target.$[`@_${attr}`] || target[`@_${attr}`]
       );
@@ -734,47 +768,33 @@ export class TableDownloadService {
 
     // Helper function to safely parse float values
     const parseFloatSafe = (value: any) => {
-      if (!value) return null;
+      if (!value) return 0;
       const numStr =
         typeof value === 'object' ? value._ || value.__text : value;
-      return isNaN(parseFloat(numStr)) ? null : parseFloat(numStr);
+      return isNaN(parseFloat(numStr)) ? 0 : parseFloat(numStr);
     };
 
-    // Process note - handle both string and object formats
+    // Process note
     const note = getNestedValue(line, 'Note');
 
     // Get values from the line object
     const lineID = getNestedValue(line, 'ID');
-    const quantity = parseFloatSafe(
-      line['cbc:InvoicedQuantity']?._ || line['InvoicedQuantity']?._,
-    );
+    const quantity = parseFloatSafe(line['cbc:InvoicedQuantity']);
     const unitCode = getAttribute(line, 'InvoicedQuantity', 'unitCode');
-    const lineExtensionAmount = parseFloatSafe(
-      line['cbc:LineExtensionAmount']?._ || line['LineExtensionAmount']?._,
-    );
+    const lineExtensionAmount = parseFloatSafe(line['cbc:LineExtensionAmount']);
     const currencyID = getAttribute(line, 'LineExtensionAmount', 'currencyID');
 
     // Get item description
-    const itemDescription = getNestedValue(
-      line['cac:Item'] || line.Item,
-      'Description',
-    );
+    const itemDescription = getNestedValue(line['cac:Item'], 'Description');
 
     // Get standard item identification
-    const standardItem =
-      (line['cac:Item'] || line.Item)?.['cac:StandardItemIdentification'] ||
-      (line['cac:Item'] || line.Item)?.StandardItemIdentification;
-    const standardItemID = standardItem?.['cbc:ID']?._ || standardItem?.ID?._;
-    const standardItemSchemeID =
-      standardItem?.['cbc:ID']?.$.schemeID?.value ||
-      standardItem?.ID?.$.schemeID?.value ||
-      standardItem?.['cbc:ID']?.['@_schemeID'];
+    const standardItem = line['cac:Item']?.['cac:StandardItemIdentification'];
+    const standardItemID = getNestedValue(standardItem, 'ID');
+    const standardItemSchemeID = getAttribute(standardItem, 'ID', 'schemeID');
 
     // Get tax information
-    const taxTotal = line['cac:TaxTotal'] || line.TaxTotal;
-    const taxAmount = parseFloatSafe(
-      taxTotal?.['cbc:TaxAmount']?._ || taxTotal?.TaxAmount?._,
-    );
+    const taxTotal = line['cac:TaxTotal'];
+    const taxAmount = parseFloatSafe(taxTotal?.['cbc:TaxAmount']);
     const taxAmountCurrencyID = getAttribute(
       taxTotal,
       'TaxAmount',
@@ -782,10 +802,8 @@ export class TableDownloadService {
     );
 
     // Get tax subtotal information
-    const taxSubtotal = taxTotal?.['cac:TaxSubtotal'] || taxTotal?.TaxSubtotal;
-    const taxableAmount = parseFloatSafe(
-      taxSubtotal?.['cbc:TaxableAmount']?._ || taxSubtotal?.TaxableAmount?._,
-    );
+    const taxSubtotal = taxTotal?.['cac:TaxSubtotal'];
+    const taxableAmount = parseFloatSafe(taxSubtotal?.['cbc:TaxableAmount']);
     const taxableAmountCurrencyID = getAttribute(
       taxSubtotal,
       'TaxableAmount',
@@ -793,30 +811,23 @@ export class TableDownloadService {
     );
 
     // Get tax category information
-    const taxCategory =
-      taxSubtotal?.['cac:TaxCategory'] || taxSubtotal?.TaxCategory;
-    const taxPercent = parseFloatSafe(
-      taxCategory?.['cbc:Percent']?._ || taxCategory?.Percent?._,
-    );
+    const taxCategory = taxSubtotal?.['cac:TaxCategory'];
+    const taxPercent = parseFloatSafe(taxCategory?.['cbc:Percent']);
 
     // Get tax scheme information
-    const taxScheme = taxCategory?.['cac:TaxScheme'] || taxCategory?.TaxScheme;
+    const taxScheme = taxCategory?.['cac:TaxScheme'];
     const taxSchemeID = getNestedValue(taxScheme, 'ID');
     const taxSchemeName = getNestedValue(taxScheme, 'Name');
 
     // Get price information
-    const price = line['cac:Price'] || line.Price;
-    const priceAmount = parseFloatSafe(
-      price?.['cbc:PriceAmount']?._ || price?.PriceAmount?._,
-    );
+    const price = line['cac:Price'];
+    const priceAmount = parseFloatSafe(price?.['cbc:PriceAmount']);
     const priceAmountCurrencyID = getAttribute(
       price,
       'PriceAmount',
       'currencyID',
     );
-    const baseQuantity = parseFloatSafe(
-      price?.['cbc:BaseQuantity']?._ || price?.BaseQuantity?._,
-    );
+    const baseQuantity = parseFloatSafe(price?.['cbc:BaseQuantity']);
     const baseQuantityUnitCode = getAttribute(
       price,
       'BaseQuantity',
@@ -849,5 +860,37 @@ export class TableDownloadService {
       baseQuantity,
       baseQuantityUnitCode,
     };
+  }
+
+  // Add these helper methods at the class level
+  private getNestedValue(obj: any, key: string) {
+    if (!obj) return null;
+    const nsKey = `cbc:${key}`;
+    const nsValue = obj[nsKey];
+    const value = obj[key];
+    const target = nsValue || value;
+    if (!target) return null;
+    if (typeof target === 'object') {
+      return target._ || target.__text;
+    }
+    return target;
+  }
+
+  private getAttribute(obj: any, key: string, attr: string) {
+    if (!obj) return null;
+    const nsKey = `cbc:${key}`;
+    const nsValue = obj[nsKey];
+    const value = obj[key];
+    const target = nsValue || value;
+    if (!target || !target.$) return null;
+    return (
+      target.$[attr]?.value || target.$[`@_${attr}`] || target[`@_${attr}`]
+    );
+  }
+
+  private parseFloatSafe(value: any) {
+    if (!value) return 0;
+    const numStr = typeof value === 'object' ? value._ || value.__text : value;
+    return isNaN(parseFloat(numStr)) ? 0 : parseFloat(numStr);
   }
 }
