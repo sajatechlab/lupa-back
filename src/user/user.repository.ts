@@ -18,6 +18,8 @@ export class UserRepository {
   }
 
   async createUser(data: { name: string; email: string; password: string }) {
+    console.log('data', data);
+
     return this.userRepository.save({
       name: data.name,
       email: data.email,
