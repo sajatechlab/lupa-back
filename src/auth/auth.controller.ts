@@ -28,6 +28,7 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  @Public()
   @Post('signup')
   async signUp(
     @Body() signUpDto: SignUpDto,
