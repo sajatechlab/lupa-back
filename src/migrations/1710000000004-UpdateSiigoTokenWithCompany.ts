@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UpdateSiigoTokenWithCompany1234567890
+export class UpdateSiigoTokenWithCompany1710000000004
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
