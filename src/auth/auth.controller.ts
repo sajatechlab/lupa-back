@@ -13,7 +13,7 @@ import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { Response } from 'express';
+import { CookieOptions, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthExceptionFilter } from './auth.exception';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -27,20 +27,30 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
+  private getCookieOptions(): CookieOptions {
+    const isProduction = this.configService.get('NODE_ENV') === 'production';
 
+    return {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      domain: isProduction ? '.lupa-ia.com' : undefined,
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day,
+      partitioned: true, // Add this for Safari 17+ (Privacy Preserving Ad Attribution)
+    } as CookieOptions; // Type assertion to handle 'partitioned'
+  }
   @Public()
   @Post('signup')
   async signUp(
     @Body() signUpDto: SignUpDto,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ accessToken: string }> {
+  ) {
     console.log('signup', signUpDto);
 
     const signUp = await this.authService.singUp(signUpDto);
-    response.cookie('jwt', signUp.accessToken, {
-      httpOnly: true,
-    });
-    return signUp;
+    response.cookie('jwt', signUp.accessToken, this.getCookieOptions());
+    return { message: 'Successfully signed up' };
   }
 
   @Public()
@@ -48,13 +58,10 @@ export class AuthController {
   async signIn(
     @Body() signInDto: SignInDto,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ accessToken: string }> {
+  ) {
     const signIn = await this.authService.signIn(signInDto);
-    response.cookie('jwt', signIn.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    });
-    return signIn;
+    response.cookie('jwt', signIn.accessToken, this.getCookieOptions());
+    return { message: 'Successfully signed in' };
   }
 
   @Post('test')
@@ -70,7 +77,7 @@ export class AuthController {
   @Post('logout')
   @UseGuards(AuthGuard())
   async logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie('jwt');
+    response.clearCookie('jwt', this.getCookieOptions());
     return { message: 'Successfully logged out' };
   }
 
