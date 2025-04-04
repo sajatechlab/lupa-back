@@ -34,7 +34,7 @@ export class AuthController {
     @Body() signUpDto: SignUpDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ accessToken: string }> {
-    console.log('signup');
+    console.log('signup', signUpDto);
 
     const signUp = await this.authService.singUp(signUpDto);
     response.cookie('jwt', signUp.accessToken, {

@@ -19,6 +19,8 @@ export class AuthService {
 
   async singUp(signUpDto: SignUpDto): Promise<{ accessToken: string }> {
     const { password, email, fullName } = signUpDto;
+    console.log('signUpDto', signUpDto, fullName);
+
     const hashedPassword = await hashPassword(password);
 
     await this.userRepository.createUser({
