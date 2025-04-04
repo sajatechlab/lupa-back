@@ -124,6 +124,7 @@ export class TableDownloadService {
       enviados,
       nit,
     });
+    console.log('startTime', Date.now());
 
     const startTime = Date.now();
     const tabulatedData: Record<string, any>[] = [];
@@ -154,19 +155,19 @@ export class TableDownloadService {
         );
       }
 
-      // if (enviados) {
-      //   console.log('Processing sent documents...');
-      //   processPromises.push(
-      //     this.processAndDownload(
-      //       'Sent',
-      //       tabulatedData,
-      //       downloadedFiles,
-      //       startDate,
-      //       endDate,
-      //       nit,
-      //     ),
-      //   );
-      // }
+      if (enviados) {
+        console.log('Processing sent documents...');
+        processPromises.push(
+          this.processAndDownload(
+            'Sent',
+            tabulatedData,
+            downloadedFiles,
+            startDate,
+            endDate,
+            nit,
+          ),
+        );
+      }
 
       // Wait for both processes to complete
       await Promise.all(processPromises);
@@ -175,6 +176,7 @@ export class TableDownloadService {
       const avgSecondsPerDoc =
         downloadedFiles.length > 0 ? totalSeconds / downloadedFiles.length : 0;
 
+      console.log('difference in minutes', (Date.now() - startTime) / 60000);
       return { tabulatedData, downloadedFiles, totalSeconds, avgSecondsPerDoc };
     } catch (error) {
       console.error('Error in authenticateTabulateAndDownload:', error);
