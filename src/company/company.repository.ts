@@ -1,11 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from './entities/company.entity';
-import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
-import { User } from '../user/entities/user.entity';
-
+import { CreateAuthDianUrlDto } from './dto/create-auth-dian-url.dto';
 @Injectable()
 export class CompanyRepository {
   constructor(
@@ -54,5 +52,22 @@ export class CompanyRepository {
 
   remove(id: string) {
     return this.companyRepository.delete(id);
+  }
+
+  async updateAuthInfo(dto: CreateAuthDianUrlDto): Promise<Company> {
+    const company = await this.findFirst({
+      where: { nit: dto.nit },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    await this.update(company.id, {
+      legalRepDocumentType: dto.legalRepDocumentType,
+      legalRepDocumentNumber: dto.legalRepDocumentNumber,
+    });
+
+    return company;
   }
 }

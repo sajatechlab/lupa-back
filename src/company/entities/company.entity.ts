@@ -7,6 +7,8 @@ import {
 } from 'typeorm';
 import { Invoice } from '../../invoice/entities/invoice.entity';
 import { User } from '../../user/entities/user.entity';
+import { DocumentType } from '../enums/document-type.enum';
+import { ValidateIf, IsNotEmpty } from 'class-validator';
 
 @Entity()
 export class Company {
@@ -84,4 +86,22 @@ export class Company {
 
   @ManyToMany(() => User, (user) => user.companies)
   users: User[];
+
+  @Column({ nullable: true })
+  @ValidateIf((o) => o.legalRepDocumentType)
+  @IsNotEmpty({
+    message: 'Document number is required when document type is provided',
+  })
+  legalRepDocumentNumber: string;
+
+  @Column({
+    type: 'enum',
+    enum: DocumentType,
+    nullable: true,
+  })
+  @ValidateIf((o) => o.legalRepDocumentNumber)
+  @IsNotEmpty({
+    message: 'Document type is required when document number is provided',
+  })
+  legalRepDocumentType: DocumentType;
 }

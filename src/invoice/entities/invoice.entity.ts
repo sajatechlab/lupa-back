@@ -29,7 +29,7 @@ export class Invoice {
   @ManyToOne(() => Company, (company) => company.thirdPartyInvoices)
   thirdParty: Company;
 
-  @Column({ type: 'date' })
+  @Column({ type: 'timestamp', nullable: true })
   issueDate: Date;
 
   @Column({ type: 'time' })
@@ -47,49 +47,49 @@ export class Invoice {
   @Column({ type: 'char', length: 3, nullable: true })
   documentCurrencyCode: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceAllowanceChargeMultiplierFactorNumeric: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceAllowanceChargeAmount: number;
 
   @Column({ type: 'char', length: 3, nullable: true })
   invoiceAllowanceChargeAmountCurrencyID: string;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceAllowanceChargeBaseAmount: number;
 
   @Column({ type: 'char', length: 3, nullable: true })
   invoiceAllowanceChargeBaseAmountCurrencyID: string;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceTaxTotalTaxAmount: number;
 
   @Column({ type: 'char', length: 3, nullable: true })
   invoiceTaxTotalTaxAmountCurrencyID: string;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceWithholdingTaxTotalTaxAmount: number;
 
   @Column({ type: 'char', length: 3, nullable: true })
   invoiceWithholdingTaxTotalTaxAmountCurrencyID: string;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceLineExtensionAmount: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceTaxExclusiveAmount: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceTaxInclusiveAmount: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceAllowanceTotalAmount: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoiceChargeTotalAmount: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   invoicePayableAmount: number;
 
   @Column({ type: 'boolean', default: false })

@@ -15,6 +15,7 @@ import { GetUser } from '../auth/get-user.decorator';
 import { User } from 'src/user/entities/user.entity';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UseGuards } from '@nestjs/common';
+import { CreateAuthDianUrlDto } from './dto/create-auth-dian-url.dto';
 
 @Controller('companies')
 export class CompanyController {
@@ -36,10 +37,7 @@ export class CompanyController {
   @Get('by-user')
   @UseGuards(JwtAuthGuard)
   async findAllByUser(@GetUser() user: User) {
-    console.log('findAllByUser', user);
-
     const companies = await this.companyService.findAllByUser(user.id);
-    console.log('companies', companies);
 
     return companies;
   }
@@ -57,5 +55,10 @@ export class CompanyController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.companyService.remove(id);
+  }
+
+  @Post('auth-url')
+  async createAuthDianUrl(@Body() dto: CreateAuthDianUrlDto) {
+    return this.companyService.createAuthDianUrl(dto);
   }
 }

@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, ManyToOne } from 'typeorm';
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Invoice } from './invoice.entity';
 
 @Entity()
@@ -15,7 +15,7 @@ export class InvoiceLine {
   @Column({ type: 'text', nullable: true })
   itemDescription: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   quantity: number;
 
   @Column({ type: 'text', nullable: true })
@@ -24,7 +24,7 @@ export class InvoiceLine {
   @Column({ nullable: true })
   invoicedQuantityUnitCode: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   lineExtensionAmount: number;
 
   @Column({ nullable: true })
@@ -39,13 +39,13 @@ export class InvoiceLine {
   @Column({ nullable: true })
   standardItemSchemeName: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   taxTotalAmount: number;
 
   @Column({ nullable: true })
   taxTotalAmountCurrencyID: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   taxableAmount: number;
 
   @Column({ nullable: true })
@@ -57,7 +57,7 @@ export class InvoiceLine {
   @Column({ nullable: true })
   taxSchemeName: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   priceAmount: number;
 
   @Column({ nullable: true })
@@ -69,33 +69,36 @@ export class InvoiceLine {
   @Column({ nullable: true })
   allowanceChargeIndicator: boolean;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   allowanceChargeMultiplierFactorNumeric: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   allowanceChargeAmount: number;
 
   @Column({ nullable: true })
   allowanceChargeAmountCurrency: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   allowanceChargeBaseAmount: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   withholdingTaxTotalAmount: number;
 
   @Column({ nullable: true })
   withholdingTaxTotalAmountCurrency: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   withholdingTaxableAmount: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  withholdingTaxPercent: number;
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
+  taxPercent: number;
 
   @Column({ nullable: true })
   withholdingTaxSchemeID: string;
 
-  @ManyToOne(() => Invoice, (invoice) => invoice.lines, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Invoice, (invoice) => invoice.lines, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'invoiceId' })
   invoice: Invoice;
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Invoice } from './entities/invoice.entity';
 import { InvoiceType } from './enums/invoice-type.enum';
 import { InvoiceMetrics } from './invoice.service';
@@ -75,5 +75,25 @@ export class InvoiceRepository {
         invoicesNotPosted: Number(sentMetrics.invoicesNotPosted),
       },
     };
+  }
+
+  async findInvoicesWithRelations(invoiceIds: string[]) {
+    const invoices = await this.invoiceRepository.find({
+      where: {
+        uuid: In(invoiceIds),
+        type: InvoiceType.RECEIVED,
+      },
+      relations: {
+        lines: true,
+        company: true,
+        thirdParty: true,
+      },
+    });
+
+    return invoices.map((invoice) => ({
+      ...invoice,
+      dueDate: invoice.dueDate ? new Date(invoice.dueDate) : null,
+      issueDate: new Date(invoice.issueDate),
+    }));
   }
 }

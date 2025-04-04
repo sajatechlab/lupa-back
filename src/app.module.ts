@@ -9,6 +9,7 @@ import { TableDownloadModule } from './table-download/table-download.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtGlobalAuthGuard } from './auth/guards/jwt-global-auth.guard';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { SiigoModule } from './siigo/siigo.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -35,6 +36,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
     AuthModule,
     TableDownloadModule,
     AttachmentsModule,
+    SiigoModule,
   ],
   providers: [
     {
