@@ -1,25 +1,22 @@
+import { Worker } from 'worker_threads';
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { firstValueFrom } from 'rxjs';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as zlib from 'zlib';
-import { promisify } from 'util';
+
 import axios from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
-import * as cheerio from 'cheerio';
 import * as AdmZip from 'adm-zip';
 import * as xml2js from 'xml2js';
-import { InvoiceData } from './field_definitions';
 import * as crypto from 'crypto';
 import { Company } from '../company/entities/company.entity';
 import { Invoice } from '../invoice/entities/invoice.entity';
 import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
 import { SoftwareProvider } from '../software-provider/entities/software-provider.entity';
 import { AttachmentsService } from 'src/attachments/attachments.service';
+import * as path from 'path';
+import { log } from 'console';
 
 enum InvoiceType {
   RECEIVED = 'RECEIVED',
@@ -29,7 +26,9 @@ enum InvoiceType {
 @Injectable()
 export class TableDownloadService {
   private readonly axiosInstance;
-
+  private workers: Worker[] = [];
+  private workerIndex = 0;
+  private readonly MAX_WORKERS = 8; // Adjust based on CPU cores
   constructor(
     private readonly httpService: HttpService,
     @InjectRepository(Company)
@@ -45,6 +44,63 @@ export class TableDownloadService {
     // Initialize Axios with cookie jar support
     const jar = new CookieJar();
     this.axiosInstance = wrapper(axios.create({ jar, withCredentials: true }));
+
+    // Initialize worker pool
+    for (let i = 0; i < this.MAX_WORKERS; i++) {
+      const worker = new Worker(path.resolve(__dirname, 'xml.worker.js'));
+      this.workers.push(worker);
+    }
+  }
+
+  private getNextWorker(): Worker {
+    const worker = this.workers[this.workerIndex];
+    this.workerIndex = (this.workerIndex + 1) % this.MAX_WORKERS;
+    return worker;
+  }
+
+  private parseXmlWithWorker(
+    xmlContent: string,
+    type: 'Received' | 'Sent',
+    fileName: string,
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const worker = this.getNextWorker();
+
+      const timeoutId = setTimeout(() => {
+        cleanup();
+        reject(new Error('Worker timeout'));
+      }, 30000);
+
+      // Define message handler
+      const messageHandler = (result: any) => {
+        cleanup();
+        if (result.success) {
+          resolve(result.data);
+        } else {
+          reject(new Error(result.error));
+        }
+      };
+
+      // Define error handler
+      const errorHandler = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+
+      // Cleanup function to remove listeners
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        worker.removeListener('message', messageHandler);
+        worker.removeListener('error', errorHandler);
+      };
+
+      // Add listeners
+      worker.once('message', messageHandler);
+      worker.once('error', errorHandler);
+
+      // Send the message
+      worker.postMessage({ xmlContent, type, fileName });
+    });
   }
 
   async authenticateTabulateAndDownload(
@@ -76,48 +132,48 @@ export class TableDownloadService {
     try {
       // Step 1: Authentication
       const authResponse = await this.axiosInstance.get(authUrl);
-      //console.log('Auth response status:', authResponse.status);
-
       if (authResponse.status !== 200) {
         throw new Error(
           `Authentication failed with status ${authResponse.status}`,
         );
       }
 
-      // Step 2: Process and download
+      // Step 2: Process both types in parallel
+      const processPromises = [];
       if (recibidos) {
         console.log('Processing received documents...');
-        await this.processAndDownload(
-          'Received',
-          tabulatedData,
-          downloadedFiles,
-          startDate,
-          endDate,
-          nit,
+        processPromises.push(
+          this.processAndDownload(
+            'Received',
+            tabulatedData,
+            downloadedFiles,
+            startDate,
+            endDate,
+            nit,
+          ),
         );
       }
 
-      if (enviados) {
-        console.log('Processing sent documents...');
-        await this.processAndDownload(
-          'Sent',
-          tabulatedData,
-          downloadedFiles,
-          startDate,
-          endDate,
-          nit,
-        );
-      }
+      // if (enviados) {
+      //   console.log('Processing sent documents...');
+      //   processPromises.push(
+      //     this.processAndDownload(
+      //       'Sent',
+      //       tabulatedData,
+      //       downloadedFiles,
+      //       startDate,
+      //       endDate,
+      //       nit,
+      //     ),
+      //   );
+      // }
+
+      // Wait for both processes to complete
+      await Promise.all(processPromises);
 
       const totalSeconds = (Date.now() - startTime) / 1000;
       const avgSecondsPerDoc =
         downloadedFiles.length > 0 ? totalSeconds / downloadedFiles.length : 0;
-
-      //console.log('Process completed successfully', {
-      // totalDocuments: downloadedFiles.length,
-      // totalSeconds,
-      // avgSecondsPerDoc,
-      //});
 
       return { tabulatedData, downloadedFiles, totalSeconds, avgSecondsPerDoc };
     } catch (error) {
@@ -136,33 +192,106 @@ export class TableDownloadService {
   ): Promise<void> {
     try {
       const url = `https://catalogo-vpfe.dian.gov.co/Document/${type}`;
-      console.log(`Requesting data from: ${url}`);
+      console.log(`Processing data from: ${url}`);
 
-      const requestBody = `startDate=${startDate}&endDate=${endDate}`;
-      const response = await this.axiosInstance.post(url, requestBody, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      let currentStartDate = `${this.getYear(endDate)}-01-01`;
+      let currentEndDate = endDate;
+      let hasMoreData = true;
 
-      if (response.status !== 200) {
-        throw new Error(`Failed to fetch data for ${type}: ${response.status}`);
+      while (hasMoreData) {
+        console.log(
+          `Requesting period: ${currentStartDate} to ${currentEndDate}`,
+        );
+
+        const requestBody = `startDate=${currentStartDate}&endDate=${currentEndDate}&documentTypeId=01`;
+        const response = await this.axiosInstance.post(url, requestBody, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+
+        if (response.status !== 200) {
+          throw new Error(
+            `Failed to fetch data for ${type}: ${response.status}`,
+          );
+        }
+
+        const htmlContent = response.data;
+
+        const rows = this.tabulateDataFromHtml(htmlContent, type, nit);
+
+        console.log(`Found ${rows.length} rows`);
+
+        // Add type to each row
+        rows.forEach((row) => (row['Tipo_Consulta'] = type));
+
+        // Add to our results
+        tabulatedData.push(...rows);
+        await this.downloadFiles(rows, downloadedFiles);
+
+        if (rows.length === 150) {
+          // Get the date from the last row
+          const lastRow = rows[rows.length - 1];
+          const lastRowDate = this.getDateFromRow(lastRow);
+          console.log('lastRowDate', lastRowDate);
+
+          // Set the new end date to the last row's date
+          currentEndDate = lastRowDate;
+
+          // If we're still in the same year, continue
+          if (this.getYear(currentEndDate) === this.getYear(currentStartDate)) {
+            hasMoreData = true;
+          } else {
+            // If we've crossed a year boundary, adjust the date range
+            currentEndDate = `${this.getYear(currentStartDate)}-12-31`; // End of current year
+            hasMoreData = true;
+          }
+        } else {
+          // If we got less than 150 rows
+          if (this.getYear(startDate) < this.getYear(currentEndDate)) {
+            // Move to next year
+            console.log('moving to next year');
+            const previousYear = this.getYear(currentEndDate) - 1;
+            currentEndDate = `${previousYear}-12-31`;
+            currentStartDate = `${previousYear}-01-01`;
+            hasMoreData = true;
+          } else {
+            hasMoreData = false;
+          }
+        }
+
+        // Add a small delay between requests
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-
-      const htmlContent = response.data;
-      //console.log('html', htmlContent);
-
-      const rows = this.tabulateDataFromHtml(htmlContent, type, nit);
-      console.log(`Found ${rows.length} rows to process for ${type}`);
-
-      for (const row of rows) {
-        row['Tipo_Consulta'] = type;
-      }
-
-      tabulatedData.push(...rows);
-      await this.downloadFiles(rows, downloadedFiles);
     } catch (error) {
       console.error(`Error in processAndDownload for ${type}:`, error);
       throw error;
     }
+  }
+
+  private getDateFromRow(row: any): string {
+    try {
+      const date = row.fecha || row.date || row['Fecha'];
+      if (!date) {
+        throw new Error('Date not found in row');
+      }
+
+      // Convert from DD-MM-YYYY to YYYY-MM-DD
+      const [day, month, year] = date.split('-');
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error('Error extracting date from row:', error);
+      console.error('Row data:', row);
+      throw error;
+    }
+  }
+
+  private getYear(dateStr: string): number {
+    console.log('dateStr', dateStr);
+    console.log('type of', typeof dateStr);
+    console.log('split', dateStr.split('-'));
+    console.log('split[2]', dateStr.split('-')[0]);
+    console.log('parseInt', parseInt(dateStr.split('-')[0], 10));
+
+    return parseInt(dateStr.split('-')[0], 10);
   }
 
   private tabulateDataFromHtml(
@@ -218,51 +347,32 @@ export class TableDownloadService {
           if (i === 1) {
             rowData['DocTipo'] = docTipo;
           }
-          // if (type === 'Received') {
-          //   console.log('NIT Receptor', rowData, headers);
-          //   console.log('NIT', nit);
-          //   if (rowData['NIT Receptor'] !== nit) {
-          //     throw new Error('Company nit does not match');
-          //     break;
-          //   }
-          // } else {
-          //   if (rowData['NIT Emisor'] !== nit) {
-          //     throw new Error('Company nit does not match');
-          //     break;
-          //   }
-          // }
         }
 
         tabulatedData.push(rowData);
       }
     }
+    // console.log('tabulatedData', tabulatedData);
 
-    const validDocTipos = new Set(['96']);
+    // const validDocTipos = new Set(['96']);
 
     // Filter using the same logic as .NET
-    tabulatedData = tabulatedData.filter((row) => {
-      if (!row.hasOwnProperty('DocTipo')) {
-        return false;
-      }
-      if (type === 'Received') {
-        if (row['NIT Receptor'] !== nit) {
-          throw new Error('Company nit does not match');
-        }
-      } else {
-        if (row['NIT Emisor'] !== nit) {
-          throw new Error('Company nit does not match');
-        }
-      }
+    // tabulatedData = tabulatedData.filter((row) => {
+    //   console.log('row', row);
 
-      const docTipoValue = row['DocTipo']?.toString();
+    //   if (!row.hasOwnProperty('DocTipo')) {
+    //     return false;
+    //   }
 
-      if (docTipoValue === null || docTipoValue === undefined) {
-        return false;
-      }
+    //   const docTipoValue = row['DocTipo']?.toString();
 
-      return !validDocTipos.has(docTipoValue);
-    });
-    console.log('tabulatedData', tabulatedData);
+    //   if (docTipoValue === null || docTipoValue === undefined) {
+    //     return false;
+    //   }
+
+    //   return true; // !validDocTipos.has(docTipoValue);
+    // });
+    //console.log('tabulatedData', tabulatedData);
 
     return tabulatedData;
   }
@@ -271,30 +381,50 @@ export class TableDownloadService {
     rows: Record<string, any>[],
     downloadedFiles: string[],
   ) {
-    let fileCount = 0;
-    for (const row of rows) {
-      const trackId = row['id'];
-      if (!trackId) continue;
-      const docTipo = row['DocTipo'];
-      let downloadUrl: string;
+    // Filter valid files first
+    const validFiles = rows.filter(
+      (row) => row['id'] && row['DocTipo'] === '01',
+    );
+    console.log(`Starting to process ${validFiles.length} files in parallel`);
 
-      // NOTE: This is the logic for other document types
-      // if (docTipo === '05' || docTipo === '102') {
-      //   downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/GetFilePdf?cune=${trackId}`;
-      // } else if (docTipo === '60') {
-      //   downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFilesEquivalente?trackId=${trackId}`;
-      // } else {
-      //   downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${trackId}`;
-      // }
+    // Process in batches to avoid overwhelming the server
+    const BATCH_SIZE = 5;
+    let successCount = 0;
 
-      if (docTipo === '01') {
-        fileCount++;
-        downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${trackId}`;
-        const type = row['Tipo_Consulta'];
-        await this.downloadAndProcessZip(downloadUrl, type);
+    for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
+      const batch = validFiles.slice(i, i + BATCH_SIZE);
+      console.log(
+        `Processing batch ${Math.floor(i / BATCH_SIZE) + 1}, files ${
+          i + 1
+        }-${Math.min(i + BATCH_SIZE, validFiles.length)}`,
+      );
+
+      const downloadPromises = batch.map(async (row) => {
+        try {
+          const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
+          await this.downloadAndProcessZip(downloadUrl, row['Tipo_Consulta']);
+          console.log(`Successfully processed ${row['id']}`);
+          return true;
+        } catch (error) {
+          console.error(`Failed to process ${row['id']}:`, error);
+          return false;
+        }
+      });
+
+      // Process batch in parallel
+      const results = await Promise.all(downloadPromises);
+      successCount += results.filter((success) => success).length;
+
+      // Small delay between batches to maintain session stability
+      if (i + BATCH_SIZE < validFiles.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-    console.log(`Total files processed: ${fileCount}`);
+
+    console.log(
+      `Successfully processed ${successCount} out of ${validFiles.length} files`,
+    );
+    return successCount;
   }
 
   async downloadAndProcessZip(
@@ -302,30 +432,31 @@ export class TableDownloadService {
     type: 'Received' | 'Sent',
   ): Promise<void> {
     try {
-      // Step 1: Download the ZIP file
       const response = await this.axiosInstance.get(url, {
         responseType: 'arraybuffer',
       });
       const zip = new AdmZip(response.data);
 
-      // Step 2: Extract XML files from the ZIP
       const zipEntries = zip.getEntries();
+      const processPromises = zipEntries.map(async (entry) => {
+        try {
+          const fileBuffer = entry.getData();
+          const fileName = entry.entryName.split('.')[0];
+          const pdfFileName = `${fileName}.pdf`;
 
-      for (const entry of zipEntries) {
-        const fileBuffer = entry.getData();
-        const fileName = entry.entryName.split('.')[0];
-        const pdfFileName = `${fileName}.pdf`;
-        if (entry.entryName.endsWith('.pdf')) {
-          await this.attachmentsService.uploadFile(fileBuffer, pdfFileName);
+          if (entry.entryName.endsWith('.pdf')) {
+            return this.attachmentsService.uploadFile(fileBuffer, pdfFileName);
+          }
+          if (entry.entryName.endsWith('.xml')) {
+            const xmlContent = entry.getData().toString('utf8');
+            return this.parseAndSaveXml(xmlContent, type, pdfFileName);
+          }
+        } catch (error) {
+          console.error(`Error processing ${entry.entryName}:`, error);
         }
-        // Parse the XML content
-        if (entry.entryName.endsWith('.xml')) {
-          const xmlContent = entry.getData().toString('utf8');
+      });
 
-          // Step 3: Parse the XML content
-          await this.parseAndSaveXml(xmlContent, type, pdfFileName);
-        }
-      }
+      await Promise.all(processPromises);
     } catch (error) {
       console.error('Error downloading or processing ZIP:', error);
     }
@@ -336,108 +467,115 @@ export class TableDownloadService {
     type: 'Received' | 'Sent',
     fileName: string,
   ): Promise<void> {
-    const parser = new xml2js.Parser({
-      explicitArray: false,
-      trim: true,
-      mergeAttrs: false,
-      tagNameProcessors: [],
-      attrNameProcessors: [],
-      attrValueProcessors: [xml2js.processors.parseNumbers],
-      valueProcessors: [xml2js.processors.parseNumbers],
-      xmlns: true,
-    });
+    try {
+      const { result } = await this.parseXmlWithWorker(
+        xmlContent,
+        type,
+        fileName,
+      );
 
-    parser.parseString(xmlContent, async (err, r) => {
-      if (err) {
-        console.error('Error parsing XML:', err);
-        return;
-      }
+      const [thirdParty, company] =
+        type === 'Received'
+          ? [this.createSupplier(result), this.createCustomer(result)]
+          : [this.createCustomer(result), this.createSupplier(result)];
 
-      const result = r.Invoice;
-      let thirdParty = null;
-      let company = null;
+      // Process in parallel
+      const [thirdPartyData, companyData, softwareProviderData] =
+        await Promise.all([
+          this.upsertCompany(thirdParty),
+          this.upsertCompany(company),
+          this.upsertSoftwareProvider(result),
+        ]);
 
-      if (type === 'Received') {
-        thirdParty = this.createSupplier(result);
-        company = this.createCustomer(result);
-      } else {
-        thirdParty = this.createCustomer(result);
-        company = this.createSupplier(result);
-      }
-
-      // Create or update Third Party
-      let thirdPartyData = await this.companyRepository.findOne({
-        where: { nit: thirdParty.nit },
-      });
-
-      if (!thirdPartyData) {
-        thirdPartyData = this.companyRepository.create(
-          thirdParty as Partial<Company>,
-        );
-        thirdPartyData = await this.companyRepository.save(thirdPartyData);
-      } else {
-        await this.companyRepository.update(
-          { nit: thirdParty.nit },
-          { ...thirdParty, id: undefined },
-        );
-      }
-
-      // Create or update Company
-      let companyData = await this.companyRepository.findOne({
-        where: { nit: company.nit },
-      });
-
-      if (!companyData) {
-        companyData = this.companyRepository.create(
-          company as Partial<Company>,
-        );
-        companyData = await this.companyRepository.save(companyData);
-      } else {
-        await this.companyRepository.update(
-          { nit: company.nit },
-          { ...company, id: undefined },
-        );
-      }
-
-      // Create Invoice
-      const invoiceData = this.createInvoice(
+      await this.upsertInvoice(
         result,
         companyData,
         thirdPartyData,
         type,
         fileName,
       );
-      const existingInvoice = await this.invoiceRepository.findOne({
-        where: { uuid: invoiceData.uuid },
-      });
+    } catch (error) {
+      console.error('Error parsing XML:', error);
+      throw error;
+    }
+  }
 
-      if (!existingInvoice) {
-        await this.invoiceRepository.save(invoiceData);
-
-        // Create Invoice Lines
-        const invoiceLines = this.createInvoiceLines(result);
-        await this.invoiceLineRepository.save(invoiceLines);
-      }
-
-      // Create or update Software Provider
-      const softwareProviderData = {
-        id: crypto.randomUUID(),
-        nit:
-          result['ext:UBLExtensions']?.['ext:UBLExtension']?.[0]?.[
-            'ext:ExtensionContent'
-          ]?.['sts:DianExtensions']?.['sts:SoftwareProvider']?.[
-            'sts:ProviderID'
-          ]._ || '',
-      };
-
-      await this.softwareProviderRepository
+  private async upsertCompany(company: Partial<Company>) {
+    try {
+      // Use upsert to either insert new or update existing company
+      await this.companyRepository
         .createQueryBuilder()
         .insert()
-        .into('software_provider')
-        .values(softwareProviderData)
-        .orIgnore()
+        .into(Company)
+        .values(company)
+        .orUpdate(
+          Object.keys(company).filter((key) => key !== 'id'), // update all fields except id
+          ['nit'], // unique identifier
+          { skipUpdateIfNoValuesChanged: true }, // optimization to skip unnecessary updates
+        )
         .execute();
+
+      // Return the company (either existing or newly created)
+      return await this.companyRepository.findOne({
+        where: { nit: company.nit },
+      });
+    } catch (error) {
+      console.error('Error in upsertCompany:', error);
+      throw error;
+    }
+  }
+
+  private async upsertInvoice(
+    result: any,
+    companyData: any,
+    thirdPartyData: any,
+    type: 'Received' | 'Sent',
+    fileName: string,
+  ) {
+    // Create Invoice Data
+    const invoiceData = this.createInvoice(
+      result,
+      companyData,
+      thirdPartyData,
+      type,
+      fileName,
+    );
+
+    // Check if invoice exists
+    const existingInvoice = await this.invoiceRepository.exist({
+      where: { uuid: invoiceData.uuid },
     });
+
+    if (existingInvoice) return; // Do nothing if invoice exists
+
+    // Save New Invoice
+    await this.invoiceRepository.save(invoiceData);
+
+    // Create and Save Invoice Lines
+    const invoiceLines = this.createInvoiceLines(result);
+    if (invoiceLines.length > 0) {
+      await this.invoiceLineRepository.save(invoiceLines);
+    }
+  }
+
+  private async upsertSoftwareProvider(result: any) {
+    // Create or update Software Provider
+    const softwareProviderData = {
+      id: crypto.randomUUID(),
+      nit:
+        result['ext:UBLExtensions']?.['ext:UBLExtension']?.[0]?.[
+          'ext:ExtensionContent'
+        ]?.['sts:DianExtensions']?.['sts:SoftwareProvider']?.['sts:ProviderID']
+          ._ || '',
+    };
+
+    await this.softwareProviderRepository
+      .createQueryBuilder()
+      .insert()
+      .into('software_provider')
+      .values(softwareProviderData)
+      .orIgnore()
+      .execute();
   }
 
   private createSupplier(result: any) {
@@ -748,7 +886,7 @@ export class TableDownloadService {
       const target = nsValue || value;
       if (!target) return null;
       if (typeof target === 'object') {
-        return target._ || target.__text;
+        return target._ || target['#text'];
       }
       return target;
     };
@@ -871,26 +1009,21 @@ export class TableDownloadService {
     const target = nsValue || value;
     if (!target) return null;
     if (typeof target === 'object') {
-      return target._ || target.__text;
+      return target._ || target['#text'];
     }
     return target;
   }
 
-  private getAttribute(obj: any, key: string, attr: string) {
-    if (!obj) return null;
-    const nsKey = `cbc:${key}`;
-    const nsValue = obj[nsKey];
-    const value = obj[key];
-    const target = nsValue || value;
-    if (!target || !target.$) return null;
-    return (
-      target.$[attr]?.value || target.$[`@_${attr}`] || target[`@_${attr}`]
+  // Clean up workers when service is destroyed
+  async onApplicationShutdown() {
+    await Promise.all(
+      this.workers.map(
+        (worker) =>
+          new Promise<void>((resolve) => {
+            worker.once('exit', () => resolve());
+            worker.terminate();
+          }),
+      ),
     );
-  }
-
-  private parseFloatSafe(value: any) {
-    if (!value) return 0;
-    const numStr = typeof value === 'object' ? value._ || value.__text : value;
-    return isNaN(parseFloat(numStr)) ? 0 : parseFloat(numStr);
   }
 }
