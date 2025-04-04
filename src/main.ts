@@ -16,6 +16,7 @@ async function bootstrap() {
       'http://localhost:8081',
       'https://preview--friendly-fund-flow.lovable.app',
       'https://lupa-ia.com',
+      'https://www.lupa-ia.com',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
