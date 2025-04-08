@@ -61,4 +61,12 @@ export class CompanyController {
   async createAuthDianUrl(@Body() dto: CreateAuthDianUrlDto) {
     return this.companyService.createAuthDianUrl(dto);
   }
+
+  @Get(':companyId/third-party-companies')
+  @UseGuards(JwtAuthGuard)
+  async getThirdPartyCompanies(@Param('companyId') companyId: string) {
+    console.log('getThirdPartyCompanies', companyId);
+
+    return this.companyService.getThirdPartyCompaniesByCompany(companyId);
+  }
 }

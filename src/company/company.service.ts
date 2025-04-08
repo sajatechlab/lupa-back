@@ -61,7 +61,9 @@ export class CompanyService {
     await this.findOne(id); // Verify existence
     return this.companyRepository.remove(id);
   }
-
+  async getThirdPartyCompaniesByCompany(companyId: string) {
+    return this.companyRepository.getThirdPartyCompaniesByCompany(companyId);
+  }
   async createAuthDianUrl(dto: CreateAuthDianUrlDto) {
     const { nit, legalRepDocumentType, legalRepDocumentNumber } = dto;
     let documentType = legalRepDocumentType;

@@ -70,4 +70,13 @@ export class CompanyRepository {
 
     return company;
   }
+
+  async getThirdPartyCompaniesByCompany(companyId: string): Promise<Company[]> {
+    return this.companyRepository
+      .createQueryBuilder('company')
+      .distinct()
+      .innerJoin('invoice', 'invoice', 'invoice."thirdPartyId" = company.id')
+      .where('invoice."companyId" = :companyId', { companyId })
+      .getMany();
+  }
 }
