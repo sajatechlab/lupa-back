@@ -23,29 +23,29 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
   // Add this before app.listen
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (
-      origin &&
-      [
-        'https://lupa-ia.com',
-        'https://www.lupa-ia.com',
-        'http://localhost:8080',
-      ].indexOf(origin) !== -1
-    ) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader(
-        'Access-Control-Allow-Methods',
-        'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      );
-      res.setHeader(
-        'Access-Control-Allow-Headers',
-        'Content-Type, Accept, Authorization',
-      );
-    }
-    next();
-  });
+  // app.use((req, res, next) => {
+  //   const origin = req.headers.origin;
+  //   if (
+  //     origin &&
+  //     [
+  //       'https://lupa-ia.com',
+  //       'https://www.lupa-ia.com',
+  //       'http://localhost:8080',
+  //     ].indexOf(origin) !== -1
+  //   ) {
+  //     res.setHeader('Access-Control-Allow-Origin', origin);
+  //     res.setHeader('Access-Control-Allow-Credentials', 'true');
+  //     res.setHeader(
+  //       'Access-Control-Allow-Methods',
+  //       'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  //     );
+  //     res.setHeader(
+  //       'Access-Control-Allow-Headers',
+  //       'Content-Type, Accept, Authorization',
+  //     );
+  //   }
+  //   next();
+  // });
 
   // Enable cookie parser
   app.use(cookieParser());
