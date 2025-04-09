@@ -7,7 +7,9 @@ import { AuthController } from './auth.controller';
 import { UserModule } from '../user/user.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtGlobalAuthGuard } from './guards/jwt-global-auth.guard';
-
+import { OtpModule } from 'src/otp/otp.module';
+import { ResendService } from 'src/utils/resend';
+import { OtpRepository } from 'src/otp/otp.repository';
 @Module({
   imports: [
     UserModule,
@@ -20,8 +22,14 @@ import { JwtGlobalAuthGuard } from './guards/jwt-global-auth.guard';
         signOptions: { expiresIn: '1d' },
       }),
     }),
+    OtpModule,
   ],
-  providers: [AuthService, JwtStrategy, JwtGlobalAuthGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtGlobalAuthGuard,
+    ResendService,
+  ],
   controllers: [AuthController],
   exports: [AuthService, JwtGlobalAuthGuard],
 })

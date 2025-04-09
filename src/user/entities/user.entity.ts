@@ -34,4 +34,10 @@ export class User {
     },
   })
   companies: Company[];
+
+  @Column({ default: false })
+  isVerified: boolean;
+
+  @Column({ nullable: true })
+  verifiedAt: Date;
 }

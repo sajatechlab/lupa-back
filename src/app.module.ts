@@ -10,6 +10,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtGlobalAuthGuard } from './auth/guards/jwt-global-auth.guard';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { SiigoModule } from './siigo/siigo.module';
+import { OtpModule } from './otp/otp.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -37,6 +38,7 @@ import { SiigoModule } from './siigo/siigo.module';
     TableDownloadModule,
     AttachmentsModule,
     SiigoModule,
+    OtpModule,
   ],
   providers: [
     {

@@ -18,8 +18,6 @@ export class UserRepository {
   }
 
   async createUser(data: { name: string; email: string; password: string }) {
-    console.log('data', data);
-
     return this.userRepository.save({
       name: data.name,
       email: data.email,
@@ -43,5 +41,7 @@ export class UserRepository {
     }
   }
 
-  // Add other user-related methods as needed
+  async updateUser(email: string, data: any) {
+    return this.userRepository.update({ email }, data);
+  }
 }

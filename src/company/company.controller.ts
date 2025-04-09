@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Req,
+  Query,
 } from '@nestjs/common';
 import { CompanyService } from './company.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
@@ -16,7 +17,7 @@ import { User } from 'src/user/entities/user.entity';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UseGuards } from '@nestjs/common';
 import { CreateAuthDianUrlDto } from './dto/create-auth-dian-url.dto';
-
+import { InvoiceType } from 'src/invoice/enums/invoice-type.enum';
 @Controller('companies')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
@@ -65,8 +66,21 @@ export class CompanyController {
   @Get(':companyId/third-party-companies')
   @UseGuards(JwtAuthGuard)
   async getThirdPartyCompanies(@Param('companyId') companyId: string) {
-    console.log('getThirdPartyCompanies', companyId);
-
     return this.companyService.getThirdPartyCompaniesByCompany(companyId);
+  }
+
+  @Get(':id/invoices')
+  @UseGuards(JwtAuthGuard)
+  async getCompanyInvocies(
+    @Param('id') id: string,
+    @Query('type') type: InvoiceType,
+  ) {
+    return this.companyService.getCompanyInvoices(id, type);
+  }
+
+  @Get(':id/invoices/metrics')
+  @UseGuards(JwtAuthGuard)
+  async getCompanyInvoicesMetrics(@Param('id') id: string) {
+    return this.companyService.getCompanyInvoicesMetrics(id);
   }
 }

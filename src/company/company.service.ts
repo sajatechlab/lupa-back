@@ -12,11 +12,15 @@ import puppeteer from 'puppeteer';
 import { chromium } from 'playwright';
 import * as fs from 'fs';
 import * as RUA from 'random-useragent';
+import { InvoiceRepository } from 'src/invoice/invoice.repository';
+import { InvoiceType } from 'src/invoice/enums/invoice-type.enum';
+import { InvoiceMetrics } from 'src/invoice/invoice.service';
 @Injectable()
 export class CompanyService {
   constructor(
     private readonly companyRepository: CompanyRepository,
     private readonly userRepository: UserRepository,
+    private readonly invoiceRepository: InvoiceRepository,
   ) {}
 
   async create(createCompanyDto: CreateCompanyDto, userId: number) {
@@ -228,5 +232,11 @@ export class CompanyService {
       console.error('Error in createAuthDianUrl:', error);
       throw error;
     }
+  }
+  async getCompanyInvoices(id: string, type: InvoiceType) {
+    return this.invoiceRepository.findByCompanyId(id, type);
+  }
+  async getCompanyInvoicesMetrics(id: string): Promise<InvoiceMetrics> {
+    return this.invoiceRepository.getCompanyMetrics(id);
   }
 }

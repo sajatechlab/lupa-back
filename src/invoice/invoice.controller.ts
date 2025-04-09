@@ -22,7 +22,7 @@ export class InvoiceController {
   // create(@Body() createInvoiceDto: CreateInvoiceDto) {
   //   return this.invoiceService.create(createInvoiceDto);
   // }
-  @Get()
+  @Get('/')
   findAll(@Query('type') type?: InvoiceType) {
     return this.invoiceService.findAll(type);
   }

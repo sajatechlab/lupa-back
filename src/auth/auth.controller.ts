@@ -8,6 +8,8 @@ import {
   Get,
   Request,
   UseFilters,
+  InternalServerErrorException,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
@@ -46,11 +48,16 @@ export class AuthController {
     @Body() signUpDto: SignUpDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log('signup', signUpDto);
-
+    //try {
     const signUp = await this.authService.singUp(signUpDto);
     response.cookie('jwt', signUp.accessToken, this.getCookieOptions());
     return { message: 'Successfully signed up' };
+    //} catch (error) {
+    // if (error instanceof BadRequestException) {
+    //  throw new BadRequestException(error.message);
+    //}
+    //throw new InternalServerErrorException(error.message);
+    //}
   }
 
   @Public()
@@ -61,7 +68,7 @@ export class AuthController {
   ) {
     const signIn = await this.authService.signIn(signInDto);
     response.cookie('jwt', signIn.accessToken, this.getCookieOptions());
-    return { message: 'Successfully signed in' };
+    return { message: 'Successfully signed in', isVerified: signIn.isVerified };
   }
 
   @Post('test')
@@ -105,4 +112,14 @@ export class AuthController {
   //   })
   //   response.redirect(this.configService.get('FRONTEND_URL') + '/companies')
   // }
+
+  @Post('email/send-verification')
+  async sendEmailVerification(@Body('email') email: string) {
+    return this.authService.sendEmailVerification(email);
+  }
+
+  @Post('email/verify')
+  async verifyEmail(@Body('email') email: string, @Body('code') code: string) {
+    return this.authService.verifyEmail(email, code);
+  }
 }

@@ -10,17 +10,23 @@ import { SignInDto } from './dto/signin.dto';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './jwt-payload.interface';
 import { hashPassword, comparePasswords } from 'src/utils/password.util';
+import { OtpRepository } from 'src/otp/otp.repository';
+import { ResendService } from 'src/utils/resend';
 @Injectable()
 export class AuthService {
   constructor(
     private userRepository: UserRepository,
     private jwtService: JwtService,
+    private readonly otpRepository: OtpRepository,
+    private readonly resendService: ResendService,
   ) {}
 
   async singUp(signUpDto: SignUpDto): Promise<{ accessToken: string }> {
     const { password, email, fullName } = signUpDto;
-    console.log('signUpDto', signUpDto, fullName);
-
+    const existingUser = await this.userRepository.findUserByEmail(email);
+    if (existingUser) {
+      throw new BadRequestException('User already exists');
+    }
     const hashedPassword = await hashPassword(password);
 
     await this.userRepository.createUser({
@@ -34,7 +40,9 @@ export class AuthService {
     return { accessToken };
   }
 
-  async signIn(singInDto: SignInDto): Promise<{ accessToken: string }> {
+  async signIn(
+    singInDto: SignInDto,
+  ): Promise<{ accessToken: string; isVerified: boolean }> {
     const { email, password } = singInDto;
     console.log('signIn', email, password);
 
@@ -43,11 +51,32 @@ export class AuthService {
     if (user && (await comparePasswords(password, user.password))) {
       const payload: JwtPayload = { email };
       const accessToken: string = await this.jwtService.sign(payload);
-      return { accessToken };
+      return { accessToken, isVerified: user.isVerified };
     } else {
       console.log('error');
       throw new UnauthorizedException('Please check your login credentials');
     }
+  }
+
+  async sendEmailVerification(email: string) {
+    const otp = await this.otpRepository.createOtp(email);
+
+    await this.resendService.sendEmailVerification(email, otp.code);
+
+    return { message: 'Verification code sent to email' };
+  }
+
+  async verifyEmail(email: string, code: string) {
+    const isValid = await this.otpRepository.validateOtp(email, code);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid or expired verification code');
+    }
+    await this.userRepository.updateUser(email, {
+      isVerified: true,
+      verifiedAt: new Date(),
+    });
+    return { message: 'Email verified successfully' };
   }
 
   // async singUpGoogle(googleUser: any): Promise<{ accessToken: string }> {
