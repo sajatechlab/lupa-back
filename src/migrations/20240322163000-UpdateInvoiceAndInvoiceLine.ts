@@ -15,7 +15,7 @@ export class UpdateInvoiceAndInvoiceLine20240322163000
     // Remove unused columns
     await queryRunner.query(`
       ALTER TABLE "invoice_line"
-      DROP COLUMN "taxableAmount",
+      DROP COLUMN "taxableAmount"
     `);
   }
 
@@ -23,7 +23,7 @@ export class UpdateInvoiceAndInvoiceLine20240322163000
     // Restore removed columns
     await queryRunner.query(`
       ALTER TABLE "invoice_line"
-      ADD COLUMN "taxableAmount" numeric(20,6),
+      ADD COLUMN "taxableAmount" numeric(20,6)
     `);
 
     // Remove new columns
