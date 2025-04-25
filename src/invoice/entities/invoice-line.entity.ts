@@ -45,17 +45,18 @@ export class InvoiceLine {
   @Column({ nullable: true })
   taxTotalAmountCurrencyID: string;
 
-  @Column('numeric', { precision: 20, scale: 6, nullable: true })
-  taxableAmount: number;
-
-  @Column({ nullable: true })
-  taxableAmountCurrencyID: string;
-
-  @Column({ nullable: true })
-  taxSchemeID: string;
-
   @Column({ nullable: true })
   taxSchemeName: string;
+
+  // New columns for secondary tax
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
+  taxAmountSecondary: number;
+
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
+  taxPercentSecondary: number;
+
+  @Column({ nullable: true })
+  taxSchemeNameSecondary: string;
 
   @Column('numeric', { precision: 20, scale: 6, nullable: true })
   priceAmount: number;
@@ -91,10 +92,16 @@ export class InvoiceLine {
   withholdingTaxableAmount: number;
 
   @Column('numeric', { precision: 20, scale: 6, nullable: true })
+  taxAmount: number;
+
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
   taxPercent: number;
 
   @Column({ nullable: true })
   withholdingTaxSchemeID: string;
+
+  @Column('numeric', { precision: 20, scale: 6, nullable: true })
+  discount: number;
 
   @ManyToOne(() => Invoice, (invoice) => invoice.lines, {
     onDelete: 'CASCADE',
@@ -102,3 +109,4 @@ export class InvoiceLine {
   @JoinColumn({ name: 'invoiceId' })
   invoice: Invoice;
 }
+//https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=10910098%7CG27570752&rk=901105140&token=541596c2-2aae-458a-aae1-4671d56d96a7

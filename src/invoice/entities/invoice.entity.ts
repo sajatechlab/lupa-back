@@ -8,6 +8,9 @@ export class Invoice {
   @PrimaryColumn('text')
   uuid: string;
 
+  @Column({ nullable: true })
+  prefix: string;
+
   @Column()
   invoiceNumber: string;
 
@@ -29,7 +32,7 @@ export class Invoice {
   @ManyToOne(() => Company, (company) => company.thirdPartyInvoices)
   thirdParty: Company;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'date', nullable: true })
   issueDate: Date;
 
   @Column({ type: 'time' })
@@ -100,4 +103,7 @@ export class Invoice {
 
   @OneToMany(() => InvoiceLine, (line) => line.invoice)
   lines: InvoiceLine[];
+
+  @Column({ type: 'integer', nullable: true })
+  paymentMethod: number;
 }

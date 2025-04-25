@@ -196,7 +196,7 @@ export class TableDownloadService {
       const url = `https://catalogo-vpfe.dian.gov.co/Document/${type}`;
       console.log(`Processing data from: ${url}`);
 
-      let currentStartDate = `${this.getYear(endDate)}-01-01`;
+      let currentStartDate = `${this.getYear(endDate)}-04-10`;
       let currentEndDate = endDate;
       let hasMoreData = true;
 
@@ -774,19 +774,69 @@ export class TableDownloadService {
       return isNaN(parseFloat(numStr)) ? 0 : parseFloat(numStr);
     };
 
+    // Helper function to get deeply nested DIAN values
+    const getDianValue = () => {
+      try {
+        const prefix =
+          result['ext:UBLExtensions']?.['ext:UBLExtension'][0]?.[
+            'ext:ExtensionContent'
+          ]?.['sts:DianExtensions']?.['sts:InvoiceControl']?.[
+            'sts:AuthorizedInvoices'
+          ]?.['sts:Prefix']?._; // Access the actual value using ._
+
+        return prefix || '';
+      } catch (error) {
+        console.error('Error getting prefix:', error);
+        return '';
+      }
+    };
+
+    // Handle TaxTotal array
+    const taxTotal = result['cac:TaxTotal'];
+    let taxAmount = 0;
+    let taxAmountCurrencyID = '';
+
+    if (Array.isArray(taxTotal)) {
+      // Sum up all tax amounts
+      taxAmount = taxTotal.reduce(
+        (sum, tax) => sum + parseFloatSafe(tax['cbc:TaxAmount']),
+        0,
+      );
+      // Take currency ID from first tax entry
+      taxAmountCurrencyID = getAttribute(
+        taxTotal[0],
+        'TaxAmount',
+        'currencyID',
+      );
+    } else {
+      taxAmount = parseFloatSafe(taxTotal?.['cbc:TaxAmount']);
+      taxAmountCurrencyID = getAttribute(taxTotal, 'TaxAmount', 'currencyID');
+    }
+    const createDate = (dateStr: string | null) => {
+      if (!dateStr) return null;
+      const [year, month, day] = dateStr.split('-').map(Number);
+      // Create date object with local timezone to avoid conversion
+      return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    };
+
     return {
       uuid: getNestedValue(result, 'UUID'),
       invoiceNumber: getNestedValue(result, 'ID'),
+      prefix: getDianValue(),
+      paymentMethod: getNestedValue(result['cac:PaymentMeans'], 'ID'),
       companyId: company.id,
       thirdPartyId: thirdParty.id,
       type: type === 'Received' ? InvoiceType.RECEIVED : InvoiceType.SENT,
-      issueDate: new Date(getNestedValue(result, 'IssueDate')),
+      issueDate: createDate(getNestedValue(result, 'IssueDate')),
+
       issueTime: new Date(
         `1970-01-01T${getNestedValue(result, 'IssueTime') || '00:00:00'}`,
       ),
-      dueDate: getNestedValue(result, 'DueDate')
-        ? new Date(getNestedValue(result, 'DueDate'))
-        : new Date(getNestedValue(result, 'IssueDate')),
+      dueDate: getNestedValue(result['cac:PaymentMeans'], 'PaymentDueDate')
+        ? createDate(
+            getNestedValue(result['cac:PaymentMeans'], 'PaymentDueDate'),
+          )
+        : createDate(getNestedValue(result, 'IssueDate')),
       invoiceTypeCode: getNestedValue(result, 'InvoiceTypeCode') || '',
       note: getNestedValue(result, 'Note'),
       documentCurrencyCode:
@@ -811,14 +861,8 @@ export class TableDownloadService {
         'BaseAmount',
         'currencyID',
       ),
-      invoiceTaxTotalTaxAmount: parseFloatSafe(
-        result['cac:TaxTotal']?.['cbc:TaxAmount'],
-      ),
-      invoiceTaxTotalTaxAmountCurrencyID: getAttribute(
-        result['cac:TaxTotal'],
-        'TaxAmount',
-        'currencyID',
-      ),
+      invoiceTaxTotalTaxAmount: taxAmount,
+      invoiceTaxTotalTaxAmountCurrencyID: taxAmountCurrencyID,
       invoiceWithholdingTaxTotalTaxAmount: parseFloatSafe(
         result['cac:WithholdingTaxTotal']?.['cbc:TaxAmount'],
       ),
@@ -850,6 +894,7 @@ export class TableDownloadService {
   }
 
   private createInvoiceLines(result: any) {
+    console.log('result', result);
     // First check if InvoiceLine exists in the result
     const invoiceLines = result['cac:InvoiceLine'] || result['InvoiceLine'];
     if (!invoiceLines) {
@@ -932,47 +977,60 @@ export class TableDownloadService {
     const standardItemID = getNestedValue(standardItem, 'ID');
     const standardItemSchemeID = getAttribute(standardItem, 'ID', 'schemeID');
 
-    // Get tax information
+    // Handle TaxTotal array
     const taxTotal = line['cac:TaxTotal'];
-    const taxAmount = parseFloatSafe(taxTotal?.['cbc:TaxAmount']);
-    const taxAmountCurrencyID = getAttribute(
-      taxTotal,
-      'TaxAmount',
-      'currencyID',
-    );
+    let primaryTax = null;
+    let secondaryTax = null;
 
-    // Get tax subtotal information
-    const taxSubtotal = taxTotal?.['cac:TaxSubtotal'];
-    const taxableAmount = parseFloatSafe(taxSubtotal?.['cbc:TaxableAmount']);
-    const taxableAmountCurrencyID = getAttribute(
-      taxSubtotal,
-      'TaxableAmount',
-      'currencyID',
-    );
+    if (Array.isArray(taxTotal)) {
+      [primaryTax, secondaryTax] = taxTotal;
+    } else {
+      primaryTax = taxTotal;
+    }
 
-    // Get tax category information
-    const taxCategory = taxSubtotal?.['cac:TaxCategory'];
-    const taxPercent = parseFloatSafe(taxCategory?.['cbc:Percent']);
+    // Process primary tax
+    const primaryTaxSubtotal = primaryTax?.['cac:TaxSubtotal'];
+    const primaryTaxCategory = primaryTaxSubtotal?.['cac:TaxCategory'];
+    const primaryTaxScheme = primaryTaxCategory?.['cac:TaxScheme'];
 
-    // Get tax scheme information
-    const taxScheme = taxCategory?.['cac:TaxScheme'];
-    const taxSchemeID = getNestedValue(taxScheme, 'ID');
-    const taxSchemeName = getNestedValue(taxScheme, 'Name');
+    // Process secondary tax if exists
+    const secondaryTaxSubtotal = secondaryTax?.['cac:TaxSubtotal'];
+    const secondaryTaxCategory = secondaryTaxSubtotal?.['cac:TaxCategory'];
+    const secondaryTaxScheme = secondaryTaxCategory?.['cac:TaxScheme'];
 
-    // Get price information
-    const price = line['cac:Price'];
-    const priceAmount = parseFloatSafe(price?.['cbc:PriceAmount']);
-    const priceAmountCurrencyID = getAttribute(
-      price,
-      'PriceAmount',
-      'currencyID',
-    );
-    const baseQuantity = parseFloatSafe(price?.['cbc:BaseQuantity']);
-    const baseQuantityUnitCode = getAttribute(
-      price,
-      'BaseQuantity',
-      'unitCode',
-    );
+    // Calculate total tax amount
+    const totalTaxAmount = Array.isArray(taxTotal)
+      ? taxTotal.reduce(
+          (sum, tax) => sum + parseFloatSafe(tax['cbc:TaxAmount']),
+          0,
+        )
+      : parseFloatSafe(taxTotal?.['cbc:TaxAmount']);
+
+    // Add this helper function to handle discount calculation
+    const getDiscount = (line: any) => {
+      const allowanceCharge = line['cac:AllowanceCharge'];
+      if (!allowanceCharge) return 0;
+
+      // Handle both array and single object cases
+      const allowances = Array.isArray(allowanceCharge)
+        ? allowanceCharge
+        : [allowanceCharge];
+
+      // Sum up all discounts (where ChargeIndicator is false)
+      return allowances.reduce((total, charge) => {
+        const isCharge =
+          charge['cbc:ChargeIndicator']?.__text === 'true' ||
+          charge['cbc:ChargeIndicator'] === 'true';
+
+        if (!isCharge) {
+          const amount = parseFloatSafe(
+            charge['cbc:Amount']?.__text || charge['cbc:Amount'],
+          );
+          return total + amount;
+        }
+        return total;
+      }, 0);
+    };
 
     return {
       id: crypto.randomUUID(),
@@ -986,19 +1044,36 @@ export class TableDownloadService {
       lineExtensionAmountCurrencyID: currencyID,
       standardItemID,
       standardItemSchemeID,
-      taxTotalAmount: taxAmount,
-      taxTotalAmountCurrencyID: taxAmountCurrencyID,
-      taxableAmount,
-      taxableAmountCurrencyID: taxableAmountCurrencyID,
-      taxAmount,
-      taxAmountCurrencyID: taxAmountCurrencyID,
-      taxPercent,
-      taxSchemeID,
-      taxSchemeName,
-      priceAmount,
-      priceAmountCurrencyID,
-      baseQuantity,
-      baseQuantityUnitCode,
+      taxTotalAmount: totalTaxAmount,
+      taxTotalAmountCurrencyID: getAttribute(
+        primaryTax,
+        'TaxAmount',
+        'currencyID',
+      ),
+      taxAmount: parseFloatSafe(primaryTax?.['cbc:TaxAmount']),
+      taxPercent: parseFloatSafe(primaryTaxCategory?.['cbc:Percent']),
+      taxSchemeName: getNestedValue(primaryTaxScheme, 'Name'),
+
+      // Secondary tax details
+      taxAmountSecondary: parseFloatSafe(secondaryTax?.['cbc:TaxAmount']),
+      taxPercentSecondary: parseFloatSafe(
+        secondaryTaxCategory?.['cbc:Percent'],
+      ),
+      taxSchemeNameSecondary: getNestedValue(secondaryTaxScheme, 'Name'),
+
+      priceAmount: parseFloatSafe(line['cac:Price']?.['cbc:PriceAmount']),
+      priceAmountCurrencyID: getAttribute(
+        line['cac:Price'],
+        'PriceAmount',
+        'currencyID',
+      ),
+      baseQuantity: parseFloatSafe(line['cac:Price']?.['cbc:BaseQuantity']),
+      baseQuantityUnitCode: getAttribute(
+        line['cac:Price'],
+        'BaseQuantity',
+        'unitCode',
+      ),
+      discount: getDiscount(line),
     };
   }
 

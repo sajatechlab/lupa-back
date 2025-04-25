@@ -9,6 +9,7 @@ import { Invoice } from '../../invoice/entities/invoice.entity';
 import { User } from '../../user/entities/user.entity';
 import { DocumentType } from '../enums/document-type.enum';
 import { ValidateIf, IsNotEmpty } from 'class-validator';
+import { EInvoiceProvider } from '../enums/invoice-provider.enum';
 
 @Entity()
 export class Company {
@@ -104,4 +105,11 @@ export class Company {
     message: 'Document type is required when document number is provided',
   })
   legalRepDocumentType: DocumentType;
+
+  @Column({
+    type: 'enum',
+    enum: EInvoiceProvider,
+    nullable: true,
+  })
+  provider: EInvoiceProvider;
 }

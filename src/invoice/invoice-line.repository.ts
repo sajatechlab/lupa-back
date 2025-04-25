@@ -31,10 +31,14 @@ export class InvoiceLineRepository {
         lineId: line.lineID,
         description: line.itemDescription,
         itemId: line.standardItemID,
-        quantity: line.quantity,
-        unitPrice: line.priceAmount,
-        taxAmount: line.taxTotalAmount,
-        salesUnitPrice: line.lineExtensionAmount,
+        quantity: Number(line.quantity),
+        unitPrice: Number(line.priceAmount),
+        taxAmount: Number(line.taxTotalAmount),
+        salesUnitPrice: Number(line.lineExtensionAmount),
+        taxPercent: Number(line.taxPercent),
+        taxAmountSecondary: Number(line.taxAmountSecondary),
+        taxPercentSecondary: Number(line.taxPercentSecondary),
+        discount: Number(line.discount),
       };
     });
   }

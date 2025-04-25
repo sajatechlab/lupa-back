@@ -18,6 +18,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UseGuards } from '@nestjs/common';
 import { CreateAuthDianUrlDto } from './dto/create-auth-dian-url.dto';
 import { InvoiceType } from 'src/invoice/enums/invoice-type.enum';
+import { ProviderConfigDto } from './dto/provider-config.dto';
 @Controller('companies')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
@@ -82,5 +83,18 @@ export class CompanyController {
   @UseGuards(JwtAuthGuard)
   async getCompanyInvoicesMetrics(@Param('id') id: string) {
     return this.companyService.getCompanyInvoicesMetrics(id);
+  }
+
+  @Post(':id/provider-config')
+  async configureProvider(
+    @Param('id') id: string,
+    @Body() providerConfigDto: ProviderConfigDto,
+  ) {
+    return this.companyService.configureProvider(id, providerConfigDto);
+  }
+
+  @Get(':id/provider')
+  async getProviderConfig(@Param('id') id: string) {
+    return this.companyService.getProviderConfig(id);
   }
 }
