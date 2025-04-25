@@ -16,9 +16,6 @@ export class UpdateInvoiceAndInvoiceLine20240322163000
     await queryRunner.query(`
       ALTER TABLE "invoice_line"
       DROP COLUMN "taxableAmount",
-      DROP COLUMN "taxableAmountCurrencyId",
-      DROP COLUMN "taxAmountCurrencyId",
-      DROP COLUMN "taxSchemeId";
     `);
   }
 
@@ -27,9 +24,6 @@ export class UpdateInvoiceAndInvoiceLine20240322163000
     await queryRunner.query(`
       ALTER TABLE "invoice_line"
       ADD COLUMN "taxableAmount" numeric(20,6),
-      ADD COLUMN "taxableAmountCurrencyId" varchar,
-      ADD COLUMN "taxAmountCurrencyId" varchar,
-      ADD COLUMN "taxSchemeId" varchar;
     `);
 
     // Remove new columns
