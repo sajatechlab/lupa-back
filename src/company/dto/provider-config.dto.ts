@@ -5,25 +5,34 @@ import {
   IsUUID,
   ValidateIf,
 } from 'class-validator';
-import { EInvoiceProvider } from '../enums/invoice-provider.enum';
+import { EInvoiceProviderEnum } from '../enums/invoice-provider.enum';
 
 export class ProviderConfigDto {
+  @IsEnum(EInvoiceProviderEnum)
+  provider: EInvoiceProviderEnum;
 
-  @IsEnum(EInvoiceProvider)
-  provider: EInvoiceProvider;
-
-  @ValidateIf((o) => o.provider === EInvoiceProvider.WORLD_OFFICE)
+  @ValidateIf((o) => o.provider === EInvoiceProviderEnum.WORLD_OFFICE)
   @IsNotEmpty()
   @IsString()
   companyName?: string;
 
-  @ValidateIf((o) => o.provider === EInvoiceProvider.WORLD_OFFICE)
+  @ValidateIf((o) => o.provider === EInvoiceProviderEnum.WORLD_OFFICE)
   @IsNotEmpty()
   @IsString()
   prefix?: string;
 
-  @ValidateIf((o) => o.provider === EInvoiceProvider.WORLD_OFFICE)
+  @ValidateIf((o) => o.provider === EInvoiceProviderEnum.WORLD_OFFICE)
   @IsNotEmpty()
   @IsString()
   documentType?: string;
+
+  @ValidateIf((o) => o.provider === EInvoiceProviderEnum.SIIGO)
+  @IsNotEmpty()
+  @IsString()
+  username?: string;
+
+  @ValidateIf((o) => o.provider === EInvoiceProviderEnum.SIIGO)
+  @IsNotEmpty()
+  @IsString()
+  accessKey?: string;
 }

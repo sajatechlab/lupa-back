@@ -15,18 +15,18 @@ import * as RUA from 'random-useragent';
 import { InvoiceRepository } from 'src/invoice/invoice.repository';
 import { InvoiceType } from 'src/invoice/enums/invoice-type.enum';
 import { InvoiceMetrics } from 'src/invoice/invoice.service';
-import { WorldOffice } from './entities/world-office.entity';
+import { EInvoiceProvider } from './entities/einovice-provider.entity';
 import { Repository } from 'typeorm';
 import { ProviderConfigDto } from './dto/provider-config.dto';
-import { EInvoiceProvider } from './enums/invoice-provider.enum';
-import { WorldOfficeRepository } from './world-office.repository';
+import { EInvoiceProviderEnum } from './enums/invoice-provider.enum';
+import { EInvoiceProviderRepository } from './einvoice-provider.repository';
 @Injectable()
 export class CompanyService {
   constructor(
     private readonly companyRepository: CompanyRepository,
     private readonly userRepository: UserRepository,
     private readonly invoiceRepository: InvoiceRepository,
-    private readonly worldOfficeRepository: WorldOfficeRepository,
+    private readonly eInvoiceProviderRepository: EInvoiceProviderRepository,
   ) {}
 
   async create(createCompanyDto: CreateCompanyDto, userId: number) {
@@ -255,19 +255,22 @@ export class CompanyService {
     if (!company) {
       throw new NotFoundException('Company not found');
     }
-
+    const existingConfig =
+      await this.eInvoiceProviderRepository.findByCompanyId(companyId);
+    if (!existingConfig) {
+      throw new NotFoundException('Provider configuration not found');
+    }
     // Update company provider
-    company.provider = providerConfigDto.provider;
+    existingConfig.provider = providerConfigDto.provider;
     await this.companyRepository.update(companyId, {
       provider: providerConfigDto.provider,
     });
 
     // Handle WorldOffice specific configuration
-    if (providerConfigDto.provider === EInvoiceProvider.WORLD_OFFICE) {
+    if (providerConfigDto.provider === EInvoiceProviderEnum.WORLD_OFFICE) {
       // Check if WorldOffice config already exists
-      let worldOfficeConfig = await this.worldOfficeRepository.findByCompanyId(
-        companyId,
-      );
+      let worldOfficeConfig =
+        await this.eInvoiceProviderRepository.findByCompanyId(companyId);
 
       if (worldOfficeConfig) {
         // Update existing config
@@ -276,14 +279,14 @@ export class CompanyService {
         worldOfficeConfig.documentType = providerConfigDto.documentType;
       } else {
         // Create new config
-        worldOfficeConfig = new WorldOffice();
+        worldOfficeConfig = new EInvoiceProvider();
         worldOfficeConfig.companyId = companyId;
         worldOfficeConfig.companyName = providerConfigDto.companyName;
         worldOfficeConfig.prefix = providerConfigDto.prefix;
         worldOfficeConfig.documentType = providerConfigDto.documentType;
       }
 
-      await this.worldOfficeRepository.save(worldOfficeConfig);
+      await this.eInvoiceProviderRepository.save(worldOfficeConfig);
     }
 
     return { message: 'Provider configuration updated successfully' };
@@ -295,16 +298,28 @@ export class CompanyService {
     if (!company) {
       throw new NotFoundException('Company not found');
     }
-    if (!company.provider) {
-      throw new BadRequestException('Provider not configured');
-    }
-    // Get WorldOffice config if provider is WORLD_OFFICE
-    if (company.provider === EInvoiceProvider.WORLD_OFFICE) {
-      const worldOfficeConfig =
-        await this.worldOfficeRepository.findByCompanyId(companyId);
-      return worldOfficeConfig;
-    }
 
+    // Get WorldOffice config if provider is WORLD_OFFICE
+    const eInvoiceProvider =
+      await this.eInvoiceProviderRepository.findByCompanyId(companyId);
+    if (!eInvoiceProvider) {
+      throw new NotFoundException('Provider configuration not found');
+    }
+    if (eInvoiceProvider.provider === EInvoiceProviderEnum.WORLD_OFFICE) {
+      return {
+        companyName: eInvoiceProvider.companyName,
+        prefix: eInvoiceProvider.prefix,
+        documentType: eInvoiceProvider.documentType,
+        provider: eInvoiceProvider.provider,
+      };
+    }
+    if (eInvoiceProvider.provider === EInvoiceProviderEnum.SIIGO) {
+      return {
+        username: eInvoiceProvider.username,
+        accessKey: eInvoiceProvider.accessKey,
+        provider: eInvoiceProvider.provider,
+      };
+    }
     return { message: 'No specific configuration for the selected provider' };
   }
 }

@@ -1,26 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { WorldOffice } from './entities/world-office.entity';
+import { EInvoiceProvider } from './entities/einovice-provider.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 @Injectable()
-export class WorldOfficeRepository {
+export class EInvoiceProviderRepository {
   constructor(
-    @InjectRepository(WorldOffice)
-    private readonly worldOfficeRepository: Repository<WorldOffice>,
+    @InjectRepository(EInvoiceProvider)
+    private readonly worldOfficeRepository: Repository<EInvoiceProvider>,
   ) {}
 
-  async findByCompanyId(companyId: string): Promise<WorldOffice> {
+  async findByCompanyId(companyId: string): Promise<EInvoiceProvider> {
     return this.worldOfficeRepository.findOne({ where: { companyId } });
   }
 
-  async save(worldOffice: Partial<WorldOffice>): Promise<WorldOffice> {
+  async save(
+    worldOffice: Partial<EInvoiceProvider>,
+  ): Promise<EInvoiceProvider> {
     return this.worldOfficeRepository.save(worldOffice);
   }
 
   async update(
     companyId: string,
-    worldOffice: Partial<WorldOffice>,
+    worldOffice: Partial<EInvoiceProvider>,
   ): Promise<void> {
     await this.worldOfficeRepository.update({ companyId }, worldOffice);
   }
