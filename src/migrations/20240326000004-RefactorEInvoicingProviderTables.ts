@@ -10,8 +10,8 @@ export class RefactorEInvoicingProviderTables20240326000004
     `);
 
     await queryRunner.query(`
-        ALTER TYPE "e_invoice_provider" RENAME TO "einvoice_provider_enum";
-      `);
+      CREATE TYPE "e_invoice_provider_enum" AS ENUM ('WORLD_OFFICE', 'SIIGO');
+    `);
 
     await queryRunner.query(`
       CREATE TABLE "e_invoice_provider" (
@@ -22,7 +22,7 @@ export class RefactorEInvoicingProviderTables20240326000004
         "companyId" uuid NOT NULL,
         "username" varchar,
         "accessKey" varchar,
-        "provider" "einvoice_provider_enum",
+        "provider" "e_invoice_provider_enum",
         CONSTRAINT "FK_einvoice_provider_company" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE
       );
     `);
@@ -55,7 +55,7 @@ export class RefactorEInvoicingProviderTables20240326000004
     `);
 
     await queryRunner.query(`
-      DROP TYPE IF EXISTS "einvoice_provider_enum";
+      DROP TYPE IF EXISTS "e_invoice_provider_enum";
     `);
 
     // Optionally, recreate the world_office table (structure as before, adjust as needed)
