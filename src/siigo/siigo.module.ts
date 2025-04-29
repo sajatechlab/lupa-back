@@ -8,12 +8,25 @@ import { Invoice } from '../invoice/entities/invoice.entity';
 import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
 import { InvoiceRepository } from 'src/invoice/invoice.repository';
 import { SiigoRepository } from './siigo.repository';
+import { EInvoiceProviderRepository } from 'src/company/einvoice-provider.repository';
+import { EInvoiceProvider } from 'src/company/entities/einovice-provider.entity';
 @Module({
   controllers: [SiigoController],
   imports: [
-    TypeOrmModule.forFeature([SiigoToken, Company, Invoice, InvoiceLine]),
+    TypeOrmModule.forFeature([
+      SiigoToken,
+      Company,
+      Invoice,
+      InvoiceLine,
+      EInvoiceProvider,
+    ]),
   ],
-  providers: [SiigoService, SiigoRepository, InvoiceRepository],
+  providers: [
+    SiigoService,
+    SiigoRepository,
+    InvoiceRepository,
+    EInvoiceProviderRepository,
+  ],
   exports: [SiigoService],
 })
 export class SiigoModule {}

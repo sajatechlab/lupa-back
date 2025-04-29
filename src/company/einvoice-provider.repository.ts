@@ -22,8 +22,8 @@ export class EInvoiceProviderRepository {
 
   async update(
     companyId: string,
-    worldOffice: Partial<EInvoiceProvider>,
+    providerInfo: Partial<EInvoiceProvider>,
   ): Promise<void> {
-    await this.worldOfficeRepository.update({ companyId }, worldOffice);
+    await this.worldOfficeRepository.update({ companyId }, providerInfo);
   }
 }

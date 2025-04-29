@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddOtpAndUserVerification20240322000000
+export class AddOtpAndUserVerification1710000000008
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {

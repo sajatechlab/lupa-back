@@ -258,38 +258,39 @@ export class CompanyService {
     const existingConfig =
       await this.eInvoiceProviderRepository.findByCompanyId(companyId);
     if (!existingConfig) {
-      throw new NotFoundException('Provider configuration not found');
-    }
-    // Update company provider
-    existingConfig.provider = providerConfigDto.provider;
-    await this.companyRepository.update(companyId, {
-      provider: providerConfigDto.provider,
-    });
-
-    // Handle WorldOffice specific configuration
-    if (providerConfigDto.provider === EInvoiceProviderEnum.WORLD_OFFICE) {
-      // Check if WorldOffice config already exists
-      let worldOfficeConfig =
-        await this.eInvoiceProviderRepository.findByCompanyId(companyId);
-
-      if (worldOfficeConfig) {
-        // Update existing config
-        worldOfficeConfig.companyName = providerConfigDto.companyName;
-        worldOfficeConfig.prefix = providerConfigDto.prefix;
-        worldOfficeConfig.documentType = providerConfigDto.documentType;
-      } else {
-        // Create new config
-        worldOfficeConfig = new EInvoiceProvider();
-        worldOfficeConfig.companyId = companyId;
-        worldOfficeConfig.companyName = providerConfigDto.companyName;
-        worldOfficeConfig.prefix = providerConfigDto.prefix;
-        worldOfficeConfig.documentType = providerConfigDto.documentType;
+      // Create new config
+      const providerConfig = new EInvoiceProvider();
+      providerConfig.companyId = companyId;
+      providerConfig.provider = providerConfigDto.provider;
+      if (providerConfigDto.provider === EInvoiceProviderEnum.SIIGO) {
+        providerConfig.username = providerConfigDto.siigoUsername;
+        providerConfig.accessKey = providerConfigDto.siigoAccessKey;
       }
-
-      await this.eInvoiceProviderRepository.save(worldOfficeConfig);
+      if (providerConfigDto.provider === EInvoiceProviderEnum.WORLD_OFFICE) {
+        providerConfig.companyName = providerConfigDto.companyName;
+        providerConfig.prefix = providerConfigDto.prefix;
+        providerConfig.documentType = providerConfigDto.documentType;
+      }
+      await this.eInvoiceProviderRepository.save(providerConfig);
+      return providerConfig;
     }
-
-    return { message: 'Provider configuration updated successfully' };
+    // Update existing config
+    existingConfig.provider = providerConfigDto.provider;
+    // Update provider config
+    if (providerConfigDto.provider === EInvoiceProviderEnum.SIIGO) {
+      existingConfig.username = providerConfigDto.siigoUsername;
+      existingConfig.accessKey = providerConfigDto.siigoAccessKey;
+    }
+    if (providerConfigDto.provider === EInvoiceProviderEnum.WORLD_OFFICE) {
+      existingConfig.companyName = providerConfigDto.companyName;
+      existingConfig.prefix = providerConfigDto.prefix;
+      existingConfig.documentType = providerConfigDto.documentType;
+    }
+    await this.eInvoiceProviderRepository.update(companyId, existingConfig);
+    return {
+      message: 'Provider configuration updated successfully',
+      existingConfig,
+    };
   }
 
   async getProviderConfig(companyId: string) {

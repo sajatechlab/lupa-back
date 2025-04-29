@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UpdateInvoiceAndInvoiceLine20240322163000
+export class UpdateInvoiceAndInvoiceLine1710000000009
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {

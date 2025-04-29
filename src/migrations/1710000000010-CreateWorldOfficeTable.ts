@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateWorldOfficeTable20240322164500
+export class CreateWorldOfficeTable1710000000010
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {

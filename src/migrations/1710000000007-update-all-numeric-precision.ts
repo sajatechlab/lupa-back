@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UpdateAllNumericPrecision20240321144500
+export class UpdateAllNumericPrecision1710000000007
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {

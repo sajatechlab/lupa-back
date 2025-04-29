@@ -29,10 +29,10 @@ export class ProviderConfigDto {
   @ValidateIf((o) => o.provider === EInvoiceProviderEnum.SIIGO)
   @IsNotEmpty()
   @IsString()
-  username?: string;
+  siigoUsername?: string;
 
   @ValidateIf((o) => o.provider === EInvoiceProviderEnum.SIIGO)
   @IsNotEmpty()
   @IsString()
-  accessKey?: string;
+  siigoAccessKey?: string;
 }

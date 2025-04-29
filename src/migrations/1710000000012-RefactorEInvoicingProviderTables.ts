@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class RefactorEInvoicingProviderTables20240326000004
+export class RefactorEInvoicingProviderTables1710000000012
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {

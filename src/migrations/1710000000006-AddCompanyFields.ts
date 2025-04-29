@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddCompanyFields1711467937123 implements MigrationInterface {
+export class AddCompanyFields1710000000006 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TYPE "document_type_enum" AS ENUM ('cedula_ciudadania', 'pasaporte')

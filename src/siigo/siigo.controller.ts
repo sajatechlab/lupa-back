@@ -19,13 +19,14 @@ import { Request } from 'express';
 export class SiigoController {
   constructor(private readonly siigoService: SiigoService) {}
 
-  @Public()
   @Get('auth-token/:companyId')
   async getAuthToken(@Param('companyId') companyId: string) {
-    return this.siigoService.getAuthToken(companyId);
+    const token = this.siigoService.getAuthToken(companyId);
+    if (token) {
+      return { message: 'Token retrieved successfully' };
+    }
   }
 
-  @Public()
   @Post('companies/:companyId/purchases')
   @UsePipes(new ValidationPipe({ transform: true }))
   async createPurchasesFromInvoices(
@@ -40,5 +41,16 @@ export class SiigoController {
       companyId,
       createPurchasesDto.invoiceIds,
     );
+  }
+
+  @Get('companies/:companyId/document-types')
+  async getDocumentTypes(@Param('companyId') companyId: string) {
+    console.log('companyId', companyId);
+
+    return this.siigoService.getDocumentTypes(companyId);
+  }
+  @Get('companies/:companyId/products')
+  async getProducts(@Param('companyId') companyId: string) {
+    return this.siigoService.getProducts(companyId);
   }
 }

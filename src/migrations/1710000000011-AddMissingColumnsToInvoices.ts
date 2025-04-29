@@ -1,9 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddMissingColumnsToInvoices20240326000000
+export class AddMissingColumnsToInvoices1710000000011
   implements MigrationInterface
 {
-  name = 'AddMissingColumnsToInvoices20240326000000';
+  name = 'AddMissingColumnsToInvoices1710000000011';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add prefix to invoice table

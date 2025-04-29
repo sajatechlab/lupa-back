@@ -17,6 +17,6 @@ import { EInvoiceProviderRepository } from './einvoice-provider.repository';
   ],
   providers: [CompanyRepository, CompanyService, EInvoiceProviderRepository],
   controllers: [CompanyController],
-  exports: [CompanyRepository],
+  exports: [CompanyRepository, EInvoiceProviderRepository],
 })
 export class CompanyModule {}

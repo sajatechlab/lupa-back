@@ -13,18 +13,17 @@ import { In } from 'typeorm';
 import { InvoiceType } from 'src/invoice/enums/invoice-type.enum';
 import { SiigoRepository } from './siigo.repository';
 import { InvoiceRepository } from 'src/invoice/invoice.repository';
+import { EInvoiceProviderRepository } from 'src/company/einvoice-provider.repository';
 @Injectable()
 export class SiigoService {
   private readonly API_URL = 'https://api.siigo.com/';
-  private readonly USERNAME =
-    process.env.SIIGO_USERNAME || 'sandbox@siigoapi.com';
-  private readonly ACCESS_KEY =
-    process.env.SIIGO_ACCESS_KEY ||
-    'NDllMzI0NmEtNjExZC00NGM3LWE3OTQtMWUyNTNlZWU0ZTM0OkosU2MwLD4xQ08=';
+  private USERNAME;
+  private ACCESS_KEY;
 
   constructor(
     private readonly siigoRepository: SiigoRepository,
     private readonly invoiceRepository: InvoiceRepository,
+    private readonly eInvoiceProviderRepository: EInvoiceProviderRepository,
   ) {}
 
   async getAuthToken(
@@ -47,7 +46,24 @@ export class SiigoService {
           tokenExpiration: storedToken.tokenExpiration,
         };
       }
-
+      const siigoCredtentials =
+        await this.eInvoiceProviderRepository.findByCompanyId(companyId);
+      if (!siigoCredtentials) {
+        console.log('No Siigo credentials found for company:', companyId);
+        throw new HttpException(
+          'No Siigo credentials found for company',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      if (!siigoCredtentials.username || !siigoCredtentials.accessKey) {
+        console.log('Siigo credentials are incomplete for company:', companyId);
+        throw new HttpException(
+          'Siigo credentials are incomplete for company',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      this.USERNAME = siigoCredtentials.username;
+      this.ACCESS_KEY = siigoCredtentials.accessKey;
       console.log('Getting new token from Siigo');
       const response = await axios.post(`${this.API_URL}auth`, {
         username: this.USERNAME,
@@ -155,9 +171,11 @@ export class SiigoService {
       const invoices = await this.invoiceRepository.findInvoicesWithRelations(
         invoiceIds,
       );
-
+      //
+      const documentType = await this.getDocumentTypes(token);
       const results = [];
-      console.log('invoices', invoices);
+      console.log('documentType', documentType);
+      return documentType;
 
       // Process each invoice
       for (const invoice of invoices) {
@@ -251,6 +269,55 @@ export class SiigoService {
         `Failed to create purchase in Siigo: ${JSON.stringify(
           error.response?.data || error.message,
         )}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getDocumentTypes(companyId: string) {
+    try {
+      const { token } = await this.getAuthToken(companyId);
+      const response = await axios.get(
+        `${this.API_URL}v1/document-types?type=FC`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Partner-Id': 'Lupa',
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching document types:', error);
+      throw new HttpException(
+        'Failed to fetch document types',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getProducts(companyId: string) {
+    try {
+      const { token } = await this.getAuthToken(companyId);
+      const response = await axios.get(
+        `${this.API_URL}v1/products?created_start=2021-02-17`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Partner-Id': 'Lupa',
+          },
+        },
+      );
+      return response.data.results.map((product) => ({
+        name: product.name,
+        code: product.code,
+      }));
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw new HttpException(
+        'Failed to fetch products',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
