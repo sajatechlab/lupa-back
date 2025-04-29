@@ -9,9 +9,16 @@ export class RefactorEInvoicingProviderTables1710000000012
       DROP TABLE IF EXISTS "world_office";
     `);
 
+    // Only rename if it exists
     await queryRunner.query(`
+  DO $$
+  BEGIN
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'e_inovice_provider') THEN
       ALTER TYPE "e_inovice_provider" RENAME TO "e_invoice_provider_enum";
-    `);
+    END IF;
+  END
+  $$;
+`);
 
     await queryRunner.query(`
       CREATE TABLE "e_invoice_provider" (
