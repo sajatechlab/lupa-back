@@ -195,8 +195,10 @@ export class TableDownloadService {
     try {
       const url = `https://catalogo-vpfe.dian.gov.co/Document/${type}`;
       console.log(`Processing data from: ${url}`);
-
-      let currentStartDate = `${this.getYear(endDate)}-04-10`;
+      const sameYear = this.getYear(endDate) === this.getYear(startDate);
+      let currentStartDate = sameYear
+        ? startDate
+        : `${this.getYear(endDate)}-01-01`;
       let currentEndDate = endDate;
       let hasMoreData = true;
 
@@ -253,7 +255,10 @@ export class TableDownloadService {
             console.log('moving to next year');
             const previousYear = this.getYear(currentEndDate) - 1;
             currentEndDate = `${previousYear}-12-31`;
-            currentStartDate = `${previousYear}-01-01`;
+            const sameCurrentYear = this.getYear(startDate) === previousYear;
+            currentStartDate = sameCurrentYear
+              ? startDate
+              : `${previousYear}-01-01`;
             hasMoreData = true;
           } else {
             hasMoreData = false;
