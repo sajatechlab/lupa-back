@@ -9,16 +9,21 @@ export class RefactorEInvoicingProviderTables1710000000012
       DROP TABLE IF EXISTS "world_office";
     `);
 
-    // Only rename if it exists
+    // Drop the old enum if it exists
     await queryRunner.query(`
-  DO $$
-  BEGIN
-    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'e_inovice_provider') THEN
-      ALTER TYPE "e_inovice_provider" RENAME TO "e_invoice_provider_enum";
-    END IF;
-  END
-  $$;
-`);
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'e_inovice_provider') THEN
+          DROP TYPE "e_inovice_provider";
+        END IF;
+      END
+      $$;
+    `);
+
+    // Create the new enum
+    await queryRunner.query(`
+      CREATE TYPE "e_invoice_provider_enum" AS ENUM ('WORLD_OFFICE', 'SIIGO');
+    `);
 
     await queryRunner.query(`
       CREATE TABLE "e_invoice_provider" (
@@ -61,8 +66,14 @@ export class RefactorEInvoicingProviderTables1710000000012
       DROP TABLE IF EXISTS "e_invoice_provider";
     `);
 
+    // Drop the new enum
     await queryRunner.query(`
-      ALTER TYPE "e_invoice_provider_enum" RENAME TO "e_inovice_provider";
+      DROP TYPE IF EXISTS "e_invoice_provider_enum";
+    `);
+
+    // Optionally, recreate the old enum if needed
+    await queryRunner.query(`
+      CREATE TYPE "e_inovice_provider" AS ENUM ('WORLD_OFFICE', 'SIIGO');
     `);
 
     // Optionally, recreate the world_office table (structure as before, adjust as needed)
