@@ -10,7 +10,7 @@ export class RefactorEInvoicingProviderTables1710000000012
     `);
 
     await queryRunner.query(`
-      CREATE TYPE "e_invoice_provider_enum" AS ENUM ('WORLD_OFFICE', 'SIIGO');
+      ALTER TYPE "e_inovice_provider" RENAME TO "e_invoice_provider_enum";
     `);
 
     await queryRunner.query(`
@@ -55,7 +55,7 @@ export class RefactorEInvoicingProviderTables1710000000012
     `);
 
     await queryRunner.query(`
-      DROP TYPE IF EXISTS "e_invoice_provider_enum";
+      ALTER TYPE "e_invoice_provider_enum" RENAME TO "e_inovice_provider";
     `);
 
     // Optionally, recreate the world_office table (structure as before, adjust as needed)
