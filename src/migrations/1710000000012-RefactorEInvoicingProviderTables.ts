@@ -10,7 +10,7 @@ export class RefactorEInvoicingProviderTables1710000000012
     `);
 
     await queryRunner.query(`
-      CREATE TABLE "e_invoice_provider" (
+      CREATE TABLE "invoice_provider" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "companyName" varchar,
         "prefix" varchar,

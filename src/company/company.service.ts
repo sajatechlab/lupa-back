@@ -15,7 +15,7 @@ import * as RUA from 'random-useragent';
 import { InvoiceRepository } from 'src/invoice/invoice.repository';
 import { InvoiceType } from 'src/invoice/enums/invoice-type.enum';
 import { InvoiceMetrics } from 'src/invoice/invoice.service';
-import { EInvoiceProvider } from './entities/einovice-provider.entity';
+import { InvoiceProvider } from './entities/einovice-provider.entity';
 import { Repository } from 'typeorm';
 import { ProviderConfigDto } from './dto/provider-config.dto';
 import { EInvoiceProviderEnum } from './enums/invoice-provider.enum';
@@ -259,7 +259,7 @@ export class CompanyService {
       await this.eInvoiceProviderRepository.findByCompanyId(companyId);
     if (!existingConfig) {
       // Create new config
-      const providerConfig = new EInvoiceProvider();
+      const providerConfig = new InvoiceProvider();
       providerConfig.companyId = companyId;
       providerConfig.provider = providerConfigDto.provider;
       if (providerConfigDto.provider === EInvoiceProviderEnum.SIIGO) {

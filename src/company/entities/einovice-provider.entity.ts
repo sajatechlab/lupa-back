@@ -9,7 +9,7 @@ import { Company } from './company.entity';
 import { EInvoiceProviderEnum } from '../enums/invoice-provider.enum';
 
 @Entity()
-export class EInvoiceProvider {
+export class InvoiceProvider {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

@@ -7,11 +7,11 @@ import { CompanyController } from './company.controller';
 import { UserModule } from '../user/user.module';
 import { User } from '../user/entities/user.entity';
 import { InvoiceModule } from 'src/invoice/invoice.module';
-import { EInvoiceProvider } from './entities/einovice-provider.entity';
+import { InvoiceProvider } from './entities/einovice-provider.entity';
 import { EInvoiceProviderRepository } from './einvoice-provider.repository';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Company, User, EInvoiceProvider]),
+    TypeOrmModule.forFeature([Company, User, InvoiceProvider]),
     UserModule,
     InvoiceModule,
   ],
