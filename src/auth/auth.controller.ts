@@ -20,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthExceptionFilter } from './auth.exception';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
+import { ContactUsDto } from './dto/contact-us.dto';
 //import { GoogleOAuthGuard } from './google-oauth.guard';
 
 @Controller('auth')
@@ -48,6 +49,8 @@ export class AuthController {
     @Body() signUpDto: SignUpDto,
     @Res({ passthrough: true }) response: Response,
   ) {
+    console.log('signUpDto', signUpDto);
+
     //try {
     const signUp = await this.authService.singUp(signUpDto);
     response.cookie('jwt', signUp.accessToken, this.getCookieOptions());
@@ -121,5 +124,13 @@ export class AuthController {
   @Post('email/verify')
   async verifyEmail(@Body('email') email: string, @Body('code') code: string) {
     return this.authService.verifyEmail(email, code);
+  }
+
+  @Public()
+  @Post('contact-us')
+  async contactUs(@Body() contactUsDto: ContactUsDto) {
+    console.log('contactUsDto', contactUsDto);
+
+    return this.authService.contactUs(contactUsDto);
   }
 }

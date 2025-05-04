@@ -31,4 +31,28 @@ export class ResendService {
       </html>`,
     };
   }
+
+  async sendContactUsEmail(contactUsDto: any) {
+    const template = this.getContactUsEmailTemplate(contactUsDto);
+
+    await this.resend.emails.send({
+      from: this.contactEmail,
+      to: this.contactEmail,
+      subject: template.subject,
+      html: template.html,
+    });
+  }
+  private getContactUsEmailTemplate(contactUsDto: any) {
+    return {
+      subject: 'Contact Us Form Submission',
+      html: `
+        <h1>Contact Us Form Submission</h1>
+        <p>Name: ${contactUsDto.name}</p>
+        <p>Email: ${contactUsDto.email}</p>
+        <p>Message: ${contactUsDto.message}</p>
+        <p>Company: ${contactUsDto.company}</p>
+        <p>Phone: ${contactUsDto.phone}</p>
+      </html>`,
+    };
+  }
 }

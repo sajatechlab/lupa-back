@@ -12,6 +12,7 @@ import { JwtPayload } from './jwt-payload.interface';
 import { hashPassword, comparePasswords } from 'src/utils/password.util';
 import { OtpRepository } from 'src/otp/otp.repository';
 import { ResendService } from 'src/utils/resend';
+import { ContactUsDto } from './dto/contact-us.dto';
 @Injectable()
 export class AuthService {
   constructor(
@@ -116,4 +117,10 @@ export class AuthService {
   //     throw new UnauthorizedException('Please check your login credentials');
   //   }
   // }
+  async contactUs(contactUsDto: ContactUsDto): Promise<{ message: string }> {
+    console.log('contactUsDto', contactUsDto);
+
+    await this.resendService.sendContactUsEmail(contactUsDto);
+    return { message: 'Message sent successfully' };
+  }
 }
