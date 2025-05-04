@@ -49,7 +49,6 @@ export class ResendService {
         <h1>Contact Us Form Submission</h1>
         <p>Name: ${contactUsDto.name}</p>
         <p>Email: ${contactUsDto.email}</p>
-        <p>Message: ${contactUsDto.message}</p>
         <p>Company: ${contactUsDto.company}</p>
         <p>Phone: ${contactUsDto.phone}</p>
       </html>`,
