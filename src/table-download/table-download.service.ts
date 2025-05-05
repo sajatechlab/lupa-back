@@ -413,7 +413,7 @@ export class TableDownloadService {
           console.log(`Successfully processed ${row['id']}`);
           return true;
         } catch (error) {
-          console.error(`Failed to process ${row['id']}:`, error);
+          console.error(`Failed to process ${row['id']}:`);
           return false;
         }
       });
@@ -465,7 +465,13 @@ export class TableDownloadService {
 
       await Promise.all(processPromises);
     } catch (error) {
-      console.error('Error downloading or processing ZIP:', error);
+      console.error('Error downloading or processing ZIP:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data?.toString?.() || error.response?.data,
+        headers: error.response?.headers,
+        stack: error.stack,
+      });
     }
   }
 
