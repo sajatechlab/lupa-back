@@ -200,7 +200,7 @@ export class InvoiceRepository {
       });
     } else {
       // Default sorting if none provided (optional)
-      queryBuilder.addOrderBy('invoice.invoiceNumber', 'ASC');
+      queryBuilder.addOrderBy('invoice.issueDate', 'DESC');
     }
     return queryBuilder.getMany();
     // return this.invoiceRepository.find({
