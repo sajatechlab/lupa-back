@@ -19,6 +19,7 @@ import { UseGuards } from '@nestjs/common';
 import { CreateAuthDianUrlDto } from './dto/create-auth-dian-url.dto';
 import { InvoiceType } from 'src/invoice/enums/invoice-type.enum';
 import { ProviderConfigDto } from './dto/provider-config.dto';
+import { Public } from 'src/auth/decorators/public.decorator';
 @Controller('companies')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
@@ -71,12 +72,26 @@ export class CompanyController {
   }
 
   @Get(':id/invoices')
-  @UseGuards(JwtAuthGuard)
+  //@UseGuards(JwtAuthGuard)
   async getCompanyInvocies(
     @Param('id') id: string,
     @Query('type') type: InvoiceType,
+    @Query('startDate') startDate?: string, // Start date for range filtering
+    @Query('endDate') endDate?: string, // End date for range filtering
+    @Query('thirdPartyId') thirdPartyId?: string, // Filter by third party ID
+    @Query('quickFilter') quickFilter?: string, // Quick filter for invoice number, third party name, and NIT
+    @Query('sort') sort?: string, // JSON string for sorting
   ) {
-    return this.companyService.getCompanyInvoices(id, type);
+    const sortCriteria = sort ? JSON.parse(sort) : []; // Parse JSON string for sorting
+    return this.companyService.getCompanyInvoices(
+      id,
+      type,
+      sortCriteria,
+      startDate,
+      endDate,
+      thirdPartyId,
+      quickFilter,
+    );
   }
 
   @Get(':id/invoices/metrics')

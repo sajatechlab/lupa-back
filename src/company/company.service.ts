@@ -239,8 +239,24 @@ export class CompanyService {
       throw error;
     }
   }
-  async getCompanyInvoices(id: string, type: InvoiceType) {
-    return this.invoiceRepository.findByCompanyId(id, type);
+  async getCompanyInvoices(
+    id: string,
+    type: InvoiceType,
+    sort?: any,
+    startDate?: string,
+    endDate?: string,
+    thirdPartyId?: string,
+    quickFilter?: string,
+  ) {
+    return this.invoiceRepository.findByCompanyId(
+      id,
+      type,
+      sort,
+      startDate,
+      endDate,
+      thirdPartyId,
+      quickFilter,
+    );
   }
   async getCompanyInvoicesMetrics(id: string): Promise<InvoiceMetrics> {
     return this.invoiceRepository.getCompanyMetrics(id);
