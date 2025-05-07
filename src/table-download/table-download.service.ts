@@ -4,7 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import axios from 'axios';
+import axios, { all } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
 import * as AdmZip from 'adm-zip';
@@ -29,6 +29,10 @@ export class TableDownloadService {
   private workers: Worker[] = [];
   private workerIndex = 0;
   private readonly MAX_WORKERS = 8; // Adjust based on CPU cores
+  private jobStatus: Record<
+    string,
+    { status: string; documentsFound: number; documentsProcessed: number }
+  > = {};
   constructor(
     private readonly httpService: HttpService,
     @InjectRepository(Company)
@@ -110,6 +114,7 @@ export class TableDownloadService {
     recibidos: boolean,
     enviados: boolean,
     nit: string,
+    jobId: string,
   ): Promise<{
     tabulatedData: Record<string, any>[];
     downloadedFiles: string[];
@@ -125,7 +130,11 @@ export class TableDownloadService {
       nit,
     });
     console.log('startTime', Date.now());
-
+    this.jobStatus[jobId] = {
+      status: 'in-progress',
+      documentsFound: 0,
+      documentsProcessed: 0,
+    };
     const startTime = Date.now();
     const tabulatedData: Record<string, any>[] = [];
     const downloadedFiles: string[] = [];
@@ -151,6 +160,7 @@ export class TableDownloadService {
             startDate,
             endDate,
             nit,
+            jobId,
           ),
         );
       }
@@ -165,6 +175,7 @@ export class TableDownloadService {
             startDate,
             endDate,
             nit,
+            jobId,
           ),
         );
       }
@@ -191,6 +202,7 @@ export class TableDownloadService {
     startDate: string,
     endDate: string,
     nit: string,
+    jobId: string,
   ): Promise<void> {
     try {
       const url = `https://catalogo-vpfe.dian.gov.co/Document/${type}`;
@@ -201,7 +213,7 @@ export class TableDownloadService {
         : `${this.getYear(endDate)}-01-01`;
       let currentEndDate = endDate;
       let hasMoreData = true;
-
+      const allRows = [];
       while (hasMoreData) {
         console.log(
           `Requesting period: ${currentStartDate} to ${currentEndDate}`,
@@ -229,7 +241,7 @@ export class TableDownloadService {
 
         // Add to our results
         tabulatedData.push(...rows);
-        await this.downloadFiles(rows, downloadedFiles);
+        allRows.push(...rows);
 
         if (rows.length === 150) {
           // Get the date from the last row
@@ -264,9 +276,9 @@ export class TableDownloadService {
             hasMoreData = false;
           }
         }
-
-        // Add a small delay between requests
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        this.jobStatus[jobId].documentsFound += allRows.length;
+        await this.downloadFiles(allRows, downloadedFiles, jobId);
+        this.jobStatus[jobId].status = 'completed';
       }
     } catch (error) {
       console.error(`Error in processAndDownload for ${type}:`, error);
@@ -387,6 +399,7 @@ export class TableDownloadService {
   private async downloadFiles(
     rows: Record<string, any>[],
     downloadedFiles: string[],
+    jobId: string,
   ) {
     // Filter valid files first
     const validFiles = rows.filter(
@@ -410,6 +423,7 @@ export class TableDownloadService {
         try {
           const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
           await this.downloadAndProcessZip(downloadUrl, row['Tipo_Consulta']);
+          this.jobStatus[jobId].documentsProcessed += 1;
           console.log(`Successfully processed ${row['id']}`);
           return true;
         } catch (error) {
@@ -1113,5 +1127,9 @@ export class TableDownloadService {
           }),
       ),
     );
+  }
+
+  getJobStatus(jobId: string) {
+    return this.jobStatus[jobId] || { status: 'not found', progress: 0 };
   }
 }
