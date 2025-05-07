@@ -35,8 +35,22 @@ export class InvoiceService {
   //   return this.invoiceRepository.create(createInvoiceDto);
   // }
 
-  findAll(type?: InvoiceType) {
-    return this.invoiceRepository.findAll(type);
+  findAll(
+    type?: InvoiceType,
+    sort?: any,
+    startDate?: string,
+    endDate?: string,
+    thirdPartyId?: string,
+    quickFilter?: string,
+  ) {
+    return this.invoiceRepository.findAll(
+      type,
+      sort,
+      startDate,
+      endDate,
+      thirdPartyId,
+      quickFilter,
+    );
   }
 
   async getInvoiceMetrics(): Promise<InvoiceMetrics> {
