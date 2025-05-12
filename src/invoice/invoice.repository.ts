@@ -149,7 +149,14 @@ export class InvoiceRepository {
     endDate?: string,
     thirdPartyId?: string,
     quickFilter?: string,
-  ): Promise<Invoice[]> {
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    invoices: Invoice[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
     const queryBuilder = this.invoiceRepository
       .createQueryBuilder('invoice')
       .where('invoice.companyId = :companyId', { companyId })
@@ -202,11 +209,17 @@ export class InvoiceRepository {
       // Default sorting if none provided (optional)
       queryBuilder.addOrderBy('invoice.issueDate', 'DESC');
     }
-    return queryBuilder.getMany();
-    // return this.invoiceRepository.find({
-    //   where: { companyId, type: type as InvoiceType },
-    //   relations: ['company', 'thirdParty', 'lines'], // Include related company data if needed
-    // });
+    // Pagination logic
+    console.log('page', page, 'limit', limit);
+
+    const [invoices, total] = await queryBuilder
+      .skip((page - 1) * limit) // Skip records for the current page
+      .take(limit) // Limit the number of records returned
+      .getManyAndCount(); // Get both the records and the total count
+
+    const totalPages = Math.ceil(total / limit); // Calculate total pages
+
+    return { invoices, total, page, totalPages }; // Return invoices and pagination info
   }
   async getCompanyMetrics(companyId: string): Promise<InvoiceMetrics> {
     const receivedMetrics = await this.invoiceRepository

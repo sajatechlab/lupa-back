@@ -1,6 +1,7 @@
 import {
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
   ValidateIf,
@@ -17,7 +18,7 @@ export class ProviderConfigDto {
   companyName?: string;
 
   @ValidateIf((o) => o.provider === EInvoiceProviderEnum.WORLD_OFFICE)
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   prefix?: string;
 

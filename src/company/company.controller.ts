@@ -72,8 +72,8 @@ export class CompanyController {
   }
 
   @Get(':id/invoices')
-  //@UseGuards(JwtAuthGuard)
-  async getCompanyInvocies(
+  @UseGuards(JwtAuthGuard)
+  async getCompanyInvoices(
     @Param('id') id: string,
     @Query('type') type: InvoiceType,
     @Query('startDate') startDate?: string, // Start date for range filtering
@@ -81,7 +81,12 @@ export class CompanyController {
     @Query('thirdPartyId') thirdPartyId?: string, // Filter by third party ID
     @Query('quickFilter') quickFilter?: string, // Quick filter for invoice number, third party name, and NIT
     @Query('sort') sort?: string, // JSON string for sorting
+    @Query('page') page: number = 1, // Page number (default to 1)
+    @Query('limit') limit: number = 10, // Number of results per page (default to 10)
   ) {
+    console.log('limit', limit);
+    console.log('page', page);
+
     const sortCriteria = sort ? JSON.parse(sort) : []; // Parse JSON string for sorting
     return this.companyService.getCompanyInvoices(
       id,
@@ -91,6 +96,8 @@ export class CompanyController {
       endDate,
       thirdPartyId,
       quickFilter,
+      page ? page : 1,
+      limit ? limit : 10,
     );
   }
 

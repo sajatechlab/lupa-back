@@ -247,6 +247,8 @@ export class CompanyService {
     endDate?: string,
     thirdPartyId?: string,
     quickFilter?: string,
+    page: number = 1, // Page number (default to 1)
+    limit: number = 10, // Page size (default to 10)
   ) {
     return this.invoiceRepository.findByCompanyId(
       id,
@@ -256,6 +258,8 @@ export class CompanyService {
       endDate,
       thirdPartyId,
       quickFilter,
+      page,
+      limit,
     );
   }
   async getCompanyInvoicesMetrics(id: string): Promise<InvoiceMetrics> {
