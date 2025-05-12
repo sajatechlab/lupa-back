@@ -14,6 +14,8 @@ async function bootstrap() {
       'https://lupa-ia.com',
       'https://www.lupa-ia.com',
       'http://localhost:8080',
+      'https://testing.lupa-ia.com',
+      'https://www.testing.lupa-ia.com',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
