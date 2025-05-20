@@ -304,7 +304,7 @@ export class TableDownloadService {
         `Found ${allRows.length} documents for ${type},recordsTotal fro period: ${startDate} to ${endDate} is ${rowsQuantity}`,
       );
 
-      this.jobStatus[jobId].documentsFound += allRows.length;
+      //this.jobStatus[jobId].documentsFound += allRows.length;
       await this.downloadFiles(allRows, downloadedFiles, jobId);
       this.jobStatus[jobId].status = 'completed';
     } catch (error) {
