@@ -443,7 +443,7 @@ export class TableDownloadService {
     // Process in batches to avoid overwhelming the server
     const BATCH_SIZE = 5;
     let successCount = 0;
-
+    const failedIds = [];
     for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
       const batch = validFiles.slice(i, i + BATCH_SIZE);
       // console.log(
@@ -461,6 +461,7 @@ export class TableDownloadService {
           return true;
         } catch (error) {
           console.error(`Failed to process ${row['id']}:`);
+          failedIds.push({ id: row['id'], type: row['Tipo_Consulta'] });
           return false;
         }
       });
@@ -481,7 +482,26 @@ export class TableDownloadService {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
+    if (failedIds.length > 0) {
+      const ids = failedIds.map((row) => row.id);
+      console.log(`Retrying failed IDs: ${ids.join(', ')}`);
 
+      // Retry logic for failed IDs
+      const retryPromises = failedIds.map(async (row) => {
+        try {
+          const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row.id}`;
+          await this.downloadAndProcessZip(downloadUrl, row.type);
+          this.jobStatus[jobId].documentsProcessed += 1;
+          console.log(`Successfully retried and processed ${row.id}`);
+        } catch (error) {
+          console.error(`Failed to retry processing ${row.id}:`, error);
+          // Optionally, you can keep track of failed retries if needed
+        }
+      });
+
+      // Wait for all retry promises to settle
+      await Promise.allSettled(retryPromises);
+    }
     console.log(
       `Successfully processed ${successCount} out of ${validFiles.length} files`,
     );
@@ -526,6 +546,9 @@ export class TableDownloadService {
         headers: error.response?.headers,
         stack: error.stack,
       });
+      throw new Error(
+        `Failed to download or process ZIP file: ${error.message}`,
+      );
     }
   }
 
