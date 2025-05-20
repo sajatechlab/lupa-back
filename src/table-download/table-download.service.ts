@@ -121,20 +121,20 @@ export class TableDownloadService {
     totalSeconds: number;
     avgSecondsPerDoc: number;
   }> {
-    // console.log('Starting authentication process with:', {
-    //   authUrl,
-    //   startDate,
-    //   endDate,
-    //   recibidos,
-    //   enviados,
-    //   nit,
-    // });
-    // console.log('startTime', Date.now());
-    // this.jobStatus[jobId] = {
-    //   status: 'in-progress',
-    //   documentsFound: 0,
-    //   documentsProcessed: 0,
-    // };
+    console.log('Starting authentication process with:', {
+      authUrl,
+      startDate,
+      endDate,
+      recibidos,
+      enviados,
+      nit,
+    });
+    console.log('startTime', Date.now());
+    this.jobStatus[jobId] = {
+      status: 'in-progress',
+      documentsFound: 0,
+      documentsProcessed: 0,
+    };
     const startTime = Date.now();
     const tabulatedData: Record<string, any>[] = [];
     const downloadedFiles: string[] = [];
@@ -151,7 +151,7 @@ export class TableDownloadService {
       // Step 2: Process both types in parallel
       const processPromises = [];
       if (recibidos) {
-        // console.log('Processing received documents...');
+        console.log('Processing received documents...');
         processPromises.push(
           this.processAndDownload(
             'Received',
@@ -166,7 +166,7 @@ export class TableDownloadService {
       }
 
       if (enviados) {
-        // console.log('Processing sent documents...');
+        console.log('Processing sent documents...');
         processPromises.push(
           this.processAndDownload(
             'Sent',
@@ -212,6 +212,7 @@ export class TableDownloadService {
         ? startDate
         : `${this.getYear(endDate)}-01-01`;
       let currentEndDate = endDate;
+      let hasMoreData = true;
       const allRows = [];
       const pagePromises = [];
 
@@ -304,14 +305,11 @@ export class TableDownloadService {
         `Found ${allRows.length} documents for ${type},recordsTotal fro period: ${startDate} to ${endDate} is ${rowsQuantity}`,
       );
 
-      //this.jobStatus[jobId].documentsFound += allRows.length;
+      this.jobStatus[jobId].documentsFound += allRows.length;
       await this.downloadFiles(allRows, downloadedFiles, jobId);
       this.jobStatus[jobId].status = 'completed';
     } catch (error) {
-      console.error(
-        `Error in processAndDownload for ${type} ${startDate} to ${endDate}:`,
-        error,
-      );
+      console.error(`Error in processAndDownload for ${type}:`, error);
       throw error;
     }
   }
@@ -435,60 +433,66 @@ export class TableDownloadService {
     const validFiles = rows.filter(
       (row) => row['id'] && row['DocTipo'] === '01',
     );
+    //console.log('validFiles', validFiles);
 
+    //console.log(`Starting to process ${validFiles.length} files in parallel`);
+
+    // Process in batches to avoid overwhelming the server
+    const BATCH_SIZE = 5;
     let successCount = 0;
-    const failedIds = [];
+    for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
+      const failedIds = [];
+      const batch = validFiles.slice(i, i + BATCH_SIZE);
 
-    const downloadPromises = validFiles.map(async (row) => {
-      try {
-        const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
-        await this.downloadAndProcessZip(downloadUrl, row['Tipo_Consulta']);
-        this.jobStatus[jobId].documentsProcessed += 1;
-        console.log(`Successfully processed ${row['id']}`);
-        return true;
-      } catch (error) {
-        console.error(`Failed to process ${row['id']}:`);
-        failedIds.push({ id: row['id'], type: row['Tipo_Consulta'] });
-        return false;
-      }
-    });
-
-    // Process batch in parallel
-    const results = await Promise.allSettled(downloadPromises);
-
-    // Count the number of successful promises
-    const successCountInBatch = results.filter(
-      (result) => result.status === 'fulfilled',
-    ).length;
-
-    // If you want to accumulate successCount
-    successCount += successCountInBatch;
-
-    if (failedIds.length > 0) {
-      const ids = failedIds.map((row) => row.id);
-      console.log(`Retrying failed IDs: ${ids.join(', ')}`);
-
-      // Retry logic for failed IDs
-      const retryPromises = failedIds.map(async (row) => {
+      const downloadPromises = batch.map(async (row) => {
         try {
-          const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row.id}`;
-          await this.downloadAndProcessZip(downloadUrl, row.type);
+          const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
+          await this.downloadAndProcessZip(downloadUrl, row['Tipo_Consulta']);
           this.jobStatus[jobId].documentsProcessed += 1;
-          console.log(`Successfully retried and processed ${row.id}`);
+          console.log(`Successfully processed ${row['id']}`);
+          return true;
         } catch (error) {
-          console.error(`Failed to retry processing ${row.id}:`, error);
-          // Optionally, you can keep track of failed retries if needed
+          console.error(`Failed to process ${row['id']}:`);
+          failedIds.push({ id: row['id'], type: row['Tipo_Consulta'] });
+          return false;
         }
       });
 
-      // Wait for all retry promises to settle
-      await Promise.allSettled(retryPromises);
+      // Process batch in parallel
+      const results = await Promise.allSettled(downloadPromises);
+
+      // Count the number of successful promises
       const successCountInBatch = results.filter(
         (result) => result.status === 'fulfilled',
       ).length;
 
+      if (failedIds.length > 0) {
+        const ids = failedIds.map((row) => row.id);
+        console.log(`Retrying failed IDs: ${ids.join(', ')}`);
+
+        // Retry logic for failed IDs
+        const retryPromises = failedIds.map(async (row) => {
+          try {
+            const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row.id}`;
+            await this.downloadAndProcessZip(downloadUrl, row.type);
+            this.jobStatus[jobId].documentsProcessed += 1;
+            console.log(`Successfully retried and processed ${row.id}`);
+          } catch (error) {
+            console.error(`Failed to retry processing ${row.id}:`, error);
+            // Optionally, you can keep track of failed retries if needed
+          }
+        });
+
+        // Wait for all retry promises to settle
+        await Promise.allSettled(retryPromises);
+      }
       // If you want to accumulate successCount
       successCount += successCountInBatch;
+
+      // Small delay between batches to maintain session stability
+      if (i + BATCH_SIZE < validFiles.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
     console.log(
       `Successfully processed ${successCount} out of ${validFiles.length} files`,
