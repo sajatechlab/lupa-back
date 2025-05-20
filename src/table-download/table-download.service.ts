@@ -181,7 +181,7 @@ export class TableDownloadService {
       }
 
       // Wait for both processes to complete
-      await Promise.all(processPromises);
+      await Promise.allSettled(processPromises);
 
       const totalSeconds = (Date.now() - startTime) / 1000;
       const avgSecondsPerDoc =
@@ -466,7 +466,7 @@ export class TableDownloadService {
       });
 
       // Process batch in parallel
-      const results = await Promise.all(downloadPromises);
+      const results = await Promise.allSettled(downloadPromises);
       successCount += results.filter((success) => success).length;
 
       // Small delay between batches to maintain session stability
@@ -510,7 +510,7 @@ export class TableDownloadService {
         }
       });
 
-      await Promise.all(processPromises);
+      await Promise.allSettled(processPromises);
     } catch (error) {
       console.error('Error downloading or processing ZIP:', {
         message: error.message,
@@ -542,7 +542,7 @@ export class TableDownloadService {
 
       // Process in parallel
       const [thirdPartyData, companyData, softwareProviderData] =
-        await Promise.all([
+        await Promise.allSettled([
           this.upsertCompany(thirdParty),
           this.upsertCompany(company),
           this.upsertSoftwareProvider(result),
@@ -1154,7 +1154,7 @@ export class TableDownloadService {
 
   // Clean up workers when service is destroyed
   async onApplicationShutdown() {
-    await Promise.all(
+    await Promise.allSettled(
       this.workers.map(
         (worker) =>
           new Promise<void>((resolve) => {
