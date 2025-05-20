@@ -258,6 +258,7 @@ export class TableDownloadService {
 
       const rowsQuantity = response.data.recordsTotal;
       const pages = Math.ceil(rowsQuantity / 50);
+      console.log('recordsTotal', rowsQuantity);
 
       if (pages > 1) {
         for (let i = 2; i <= pages; i++) {
