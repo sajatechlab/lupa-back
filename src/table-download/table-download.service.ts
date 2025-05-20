@@ -467,7 +467,14 @@ export class TableDownloadService {
 
       // Process batch in parallel
       const results = await Promise.allSettled(downloadPromises);
-      successCount += results.filter((success) => success).length;
+
+      // Count the number of successful promises
+      const successCountInBatch = results.filter(
+        (result) => result.status === 'fulfilled',
+      ).length;
+
+      // If you want to accumulate successCount
+      successCount += successCountInBatch;
 
       // Small delay between batches to maintain session stability
       if (i + BATCH_SIZE < validFiles.length) {
@@ -542,7 +549,7 @@ export class TableDownloadService {
 
       // Process in parallel
       const [thirdPartyData, companyData, softwareProviderData] =
-        await Promise.allSettled([
+        await Promise.all([
           this.upsertCompany(thirdParty),
           this.upsertCompany(company),
           this.upsertSoftwareProvider(result),
