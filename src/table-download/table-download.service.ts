@@ -231,12 +231,16 @@ export class TableDownloadService {
       const response = await this.axiosInstance.post(url, requestBody, {
         headers: { 'Content-Type': 'application/json' },
       });
-      console.log('response', response.data);
+      //console.log('response', response.data);
 
       if (response.status !== 200) {
         throw new Error(`Failed to fetch data for ${type}: ${response.status}`);
       }
 
+      if (!response.data || !response.data.data) {
+        console.error(`No data found for ${type}`);
+        return;
+      }
       allRows.push(
         ...response.data.data.map((row) => {
           return {
