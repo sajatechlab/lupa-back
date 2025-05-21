@@ -149,39 +149,33 @@ export class TableDownloadService {
       }
 
       // Step 2: Process both types in parallel
-      const processPromises = [];
+
       if (recibidos) {
         console.log('Processing received documents...');
-        processPromises.push(
-          this.processAndDownload(
-            'Received',
-            tabulatedData,
-            downloadedFiles,
-            startDate,
-            endDate,
-            nit,
-            jobId,
-          ),
+
+        this.processAndDownload(
+          'Received',
+          tabulatedData,
+          downloadedFiles,
+          startDate,
+          endDate,
+          nit,
+          jobId,
         );
       }
 
       if (enviados) {
         console.log('Processing sent documents...');
-        processPromises.push(
-          this.processAndDownload(
-            'Sent',
-            tabulatedData,
-            downloadedFiles,
-            startDate,
-            endDate,
-            nit,
-            jobId,
-          ),
+        await this.processAndDownload(
+          'Sent',
+          tabulatedData,
+          downloadedFiles,
+          startDate,
+          endDate,
+          nit,
+          jobId,
         );
       }
-
-      // Wait for both processes to complete
-      await Promise.allSettled(processPromises);
 
       const totalSeconds = (Date.now() - startTime) / 1000;
       const avgSecondsPerDoc =
@@ -235,8 +229,9 @@ export class TableDownloadService {
         blockIndex: 0,
       };
       const response = await this.axiosInstance.post(url, requestBody, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 'Content-Type': 'application/json' },
       });
+      console.log('response', response.data);
 
       if (response.status !== 200) {
         throw new Error(`Failed to fetch data for ${type}: ${response.status}`);
@@ -314,115 +309,9 @@ export class TableDownloadService {
     }
   }
 
-  // private getDateFromRow(row: any): string {
-  //   try {
-  //     const date = row.fecha || row.date || row['Fecha'];
-  //     if (!date) {
-  //       throw new Error('Date not found in row');
-  //     }
-
-  //     // Convert from DD-MM-YYYY to YYYY-MM-DD
-  //     const [day, month, year] = date.split('-');
-  //     return `${year}-${month}-${day}`;
-  //   } catch (error) {
-  //     console.error('Error extracting date from row:', error);
-  //     console.error('Row data:', row);
-  //     throw error;
-  //   }
-  // }
-
   private getYear(dateStr: string): number {
-    // console.log('dateStr', dateStr);
-    // console.log('type of', typeof dateStr);
-    // console.log('split', dateStr.split('-'));
-    // console.log('split[2]', dateStr.split('-')[0]);
-    // console.log('parseInt', parseInt(dateStr.split('-')[0], 10));
-
     return parseInt(dateStr.split('-')[0], 10);
   }
-
-  // private tabulateDataFromHtml(
-  //   htmlContent: string,
-  //   type: string,
-  //   nit: string,
-  // ): Record<string, any>[] {
-  //   let tabulatedData: Record<string, any>[] = [];
-
-  //   const headers = [
-  //     'Recepcion',
-  //     'Fecha',
-  //     'Prefijo',
-  //     'N_documento',
-  //     'Tipo',
-  //     'NIT Emisor',
-  //     'Emisor',
-  //     'NIT Receptor',
-  //     'Receptor',
-  //     'Resultado',
-  //     'Estado RADIAN',
-  //     'Valor Total',
-  //   ];
-
-  //   // Extract rows
-  //   const rowMatches = htmlContent.match(/<tr.*?>(.*?)<\/tr>/gs) || [];
-
-  //   for (const rowMatch of rowMatches) {
-  //     const rowContent = rowMatch.match(/<tr.*?>(.*?)<\/tr>/s)?.[1] || '';
-
-  //     // Extract trackId (data-id)
-  //     const trackId = rowMatch.match(/data-id="(.*?)"/)?.[1] || null;
-
-  //     // Extract data-type
-  //     const docTipo = rowMatch.match(/data-type="(.*?)"/)?.[1] || '';
-
-  //     // Extract cells (td)
-  //     const cellMatches = rowContent.match(/<td.*?>(.*?)<\/td>/gs) || [];
-  //     const cells = cellMatches.map((cell) =>
-  //       cell.replace(/<.*?>/g, '').trim(),
-  //     );
-
-  //     if (trackId && cells.length > 1) {
-  //       const rowData: Record<string, any> = {
-  //         id: trackId,
-  //       };
-
-  //       // Add columns in order
-  //       for (let i = 1; i < cells.length && i <= headers.length; i++) {
-  //         rowData[headers[i - 1]] = cells[i];
-
-  //         // After adding "Recepcion", add "DocTipo"
-  //         if (i === 1) {
-  //           rowData['DocTipo'] = docTipo;
-  //         }
-  //       }
-
-  //       tabulatedData.push(rowData);
-  //     }
-  //   }
-  //   // console.log('tabulatedData', tabulatedData);
-
-  //   // const validDocTipos = new Set(['96']);
-
-  //   // Filter using the same logic as .NET
-  //   // tabulatedData = tabulatedData.filter((row) => {
-  //   //   console.log('row', row);
-
-  //   //   if (!row.hasOwnProperty('DocTipo')) {
-  //   //     return false;
-  //   //   }
-
-  //   //   const docTipoValue = row['DocTipo']?.toString();
-
-  //   //   if (docTipoValue === null || docTipoValue === undefined) {
-  //   //     return false;
-  //   //   }
-
-  //   //   return true; // !validDocTipos.has(docTipoValue);
-  //   // });
-  //   //console.log('tabulatedData', tabulatedData);
-
-  //   return tabulatedData;
-  // }
 
   private async downloadFiles(
     rows: Record<string, any>[],
