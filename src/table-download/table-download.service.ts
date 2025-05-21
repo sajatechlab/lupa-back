@@ -153,7 +153,7 @@ export class TableDownloadService {
       if (recibidos) {
         console.log('Processing received documents...');
 
-        this.processAndDownload(
+        await this.processAndDownload(
           'Received',
           tabulatedData,
           downloadedFiles,
