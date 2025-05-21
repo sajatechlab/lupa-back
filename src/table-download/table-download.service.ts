@@ -301,7 +301,7 @@ export class TableDownloadService {
         }
       }
       console.log(
-        `Found ${allRows.length} documents for ${type},recordsTotal fro period: ${startDate} to ${endDate} is ${rowsQuantity}`,
+        `Found ${allRows.length} documents for ${type},recordsTotal fro period: ${startDate} to ${endDate} is ${rowsQuantity}, replica RAILWAY_REPLICA_ID: ${process.env.RAILWAY_REPLICA_ID}`,
       );
 
       this.jobStatus[jobId].documentsFound += allRows.length;
