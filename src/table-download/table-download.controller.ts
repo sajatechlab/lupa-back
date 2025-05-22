@@ -28,6 +28,8 @@ export class TableDownloadController {
       nit,
       jobId,
     );
+
+    await new Promise(resolve => setTimeout(resolve, 120000));
     return {
       message: 'Download started',
       jobId: jobId,
