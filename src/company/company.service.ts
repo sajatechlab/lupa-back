@@ -239,8 +239,28 @@ export class CompanyService {
       throw error;
     }
   }
-  async getCompanyInvoices(id: string, type: InvoiceType) {
-    return this.invoiceRepository.findByCompanyId(id, type);
+  async getCompanyInvoices(
+    id: string,
+    type: InvoiceType,
+    sort?: any,
+    startDate?: string,
+    endDate?: string,
+    thirdPartyId?: string,
+    quickFilter?: string,
+    page: number = 1, // Page number (default to 1)
+    limit: number = 10, // Page size (default to 10)
+  ) {
+    return this.invoiceRepository.findByCompanyId(
+      id,
+      type,
+      sort,
+      startDate,
+      endDate,
+      thirdPartyId,
+      quickFilter,
+      page,
+      limit,
+    );
   }
   async getCompanyInvoicesMetrics(id: string): Promise<InvoiceMetrics> {
     return this.invoiceRepository.getCompanyMetrics(id);
@@ -322,5 +342,9 @@ export class CompanyService {
       };
     }
     return { message: 'No specific configuration for the selected provider' };
+  }
+
+  async getCompanyDashboard(companyId: string) {
+    return this.invoiceRepository.getCompanyDashboardMetrics(companyId);
   }
 }

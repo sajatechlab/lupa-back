@@ -45,10 +45,9 @@ export class AuthService {
     singInDto: SignInDto,
   ): Promise<{ accessToken: string; isVerified: boolean }> {
     const { email, password } = singInDto;
-    console.log('signIn', email, password);
 
     const user = await this.userRepository.findUserByEmail(email);
-    console.log('user', user);
+    console.log('user', user.email);
     if (user && (await comparePasswords(password, user.password))) {
       const payload: JwtPayload = { email };
       const accessToken: string = await this.jwtService.sign(payload);

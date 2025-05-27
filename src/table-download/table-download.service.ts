@@ -4,7 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import axios from 'axios';
+import axios, { all } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
 import * as AdmZip from 'adm-zip';
@@ -29,6 +29,10 @@ export class TableDownloadService {
   private workers: Worker[] = [];
   private workerIndex = 0;
   private readonly MAX_WORKERS = 8; // Adjust based on CPU cores
+  private jobStatus: Record<
+    string,
+    { status: string; documentsFound: number; documentsProcessed: number }
+  > = {};
   constructor(
     private readonly httpService: HttpService,
     @InjectRepository(Company)
@@ -110,6 +114,7 @@ export class TableDownloadService {
     recibidos: boolean,
     enviados: boolean,
     nit: string,
+    jobId: string,
   ): Promise<{
     tabulatedData: Record<string, any>[];
     downloadedFiles: string[];
@@ -125,7 +130,11 @@ export class TableDownloadService {
       nit,
     });
     console.log('startTime', Date.now());
-
+    this.jobStatus[jobId] = {
+      status: 'in-progress',
+      documentsFound: 0,
+      documentsProcessed: 0,
+    };
     const startTime = Date.now();
     const tabulatedData: Record<string, any>[] = [];
     const downloadedFiles: string[] = [];
@@ -140,37 +149,33 @@ export class TableDownloadService {
       }
 
       // Step 2: Process both types in parallel
-      const processPromises = [];
+
       if (recibidos) {
         console.log('Processing received documents...');
-        processPromises.push(
-          this.processAndDownload(
-            'Received',
-            tabulatedData,
-            downloadedFiles,
-            startDate,
-            endDate,
-            nit,
-          ),
+
+        await this.processAndDownload(
+          'Received',
+          tabulatedData,
+          downloadedFiles,
+          startDate,
+          endDate,
+          nit,
+          jobId,
         );
       }
 
       if (enviados) {
         console.log('Processing sent documents...');
-        processPromises.push(
-          this.processAndDownload(
-            'Sent',
-            tabulatedData,
-            downloadedFiles,
-            startDate,
-            endDate,
-            nit,
-          ),
+        await this.processAndDownload(
+          'Sent',
+          tabulatedData,
+          downloadedFiles,
+          startDate,
+          endDate,
+          nit,
+          jobId,
         );
       }
-
-      // Wait for both processes to complete
-      await Promise.all(processPromises);
 
       const totalSeconds = (Date.now() - startTime) / 1000;
       const avgSecondsPerDoc =
@@ -191,243 +196,197 @@ export class TableDownloadService {
     startDate: string,
     endDate: string,
     nit: string,
+    jobId: string,
   ): Promise<void> {
     try {
-      const url = `https://catalogo-vpfe.dian.gov.co/Document/${type}`;
-      console.log(`Processing data from: ${url}`);
+      const url = `https://catalogo-vpfe.dian.gov.co/Document/GetDocumentsPageToken`;
+      //console.log(`Processing data from: ${url}`);
       const sameYear = this.getYear(endDate) === this.getYear(startDate);
       let currentStartDate = sameYear
         ? startDate
         : `${this.getYear(endDate)}-01-01`;
       let currentEndDate = endDate;
       let hasMoreData = true;
+      const allRows = [];
+      const pagePromises = [];
 
-      while (hasMoreData) {
-        console.log(
-          `Requesting period: ${currentStartDate} to ${currentEndDate}`,
-        );
+      const filterType = type === 'Received' ? '3' : '2';
 
-        const requestBody = `startDate=${currentStartDate}&endDate=${currentEndDate}&documentTypeId=01`;
-        const response = await this.axiosInstance.post(url, requestBody, {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        });
+      const requestBody = {
+        draw: 1,
+        start: 0,
+        length: 50,
+        DocumentKey: '',
+        SerieAndNumber: '',
+        SenderCode: '',
+        ReceiverCode: '',
+        StartDate: currentStartDate,
+        EndDate: currentEndDate,
+        DocumentTypeId: '01', // "Todos"
+        Status: '0', // "Todos"
+        IsNextPage: false,
+        FilterType: filterType,
+        blockIndex: 0,
+      };
+      const response = await this.axiosInstance.post(url, requestBody, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      //console.log('response', response.data);
 
-        if (response.status !== 200) {
-          throw new Error(
-            `Failed to fetch data for ${type}: ${response.status}`,
-          );
-        }
-
-        const htmlContent = response.data;
-
-        const rows = this.tabulateDataFromHtml(htmlContent, type, nit);
-
-        console.log(`Found ${rows.length} rows`);
-
-        // Add type to each row
-        rows.forEach((row) => (row['Tipo_Consulta'] = type));
-
-        // Add to our results
-        tabulatedData.push(...rows);
-        await this.downloadFiles(rows, downloadedFiles);
-
-        if (rows.length === 150) {
-          // Get the date from the last row
-          const lastRow = rows[rows.length - 1];
-          const lastRowDate = this.getDateFromRow(lastRow);
-          console.log('lastRowDate', lastRowDate);
-
-          // Set the new end date to the last row's date
-          currentEndDate = lastRowDate;
-
-          // If we're still in the same year, continue
-          if (this.getYear(currentEndDate) === this.getYear(currentStartDate)) {
-            hasMoreData = true;
-          } else {
-            // If we've crossed a year boundary, adjust the date range
-            currentEndDate = `${this.getYear(currentStartDate)}-12-31`; // End of current year
-            hasMoreData = true;
-          }
-        } else {
-          // If we got less than 150 rows
-          if (this.getYear(startDate) < this.getYear(currentEndDate)) {
-            // Move to next year
-            console.log('moving to next year');
-            const previousYear = this.getYear(currentEndDate) - 1;
-            currentEndDate = `${previousYear}-12-31`;
-            const sameCurrentYear = this.getYear(startDate) === previousYear;
-            currentStartDate = sameCurrentYear
-              ? startDate
-              : `${previousYear}-01-01`;
-            hasMoreData = true;
-          } else {
-            hasMoreData = false;
-          }
-        }
-
-        // Add a small delay between requests
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (response.status !== 200) {
+        throw new Error(`Failed to fetch data for ${type}: ${response.status}`);
       }
+
+      if (!response.data || !response.data.data) {
+        console.error(`No data found for ${type}`);
+        return;
+      }
+      allRows.push(
+        ...response.data.data.map((row) => {
+          return {
+            id: row.Id,
+            Tipo_Consulta: type,
+            DocTipo: row.DocumentTypeId,
+          };
+        }),
+      );
+
+      const rowsQuantity = response.data.recordsTotal;
+      const pages = Math.ceil(rowsQuantity / 50);
+
+      if (pages > 1) {
+        for (let i = 2; i <= pages; i++) {
+          const start = ((i - 1) % 3) * 50;
+          const blockIndex = Math.floor((i - 1) / 3);
+          const IsNextPage = i >= 4;
+          const requestBody = {
+            draw: i,
+            start,
+            length: 50,
+            DocumentKey: '',
+            SerieAndNumber: '',
+            SenderCode: '',
+            ReceiverCode: '',
+            StartDate: currentStartDate,
+            EndDate: currentEndDate,
+            DocumentTypeId: '01', // "Todos"
+            Status: '0', // "Todos"
+            IsNextPage,
+            FilterType: filterType,
+            blockIndex,
+          };
+
+          const promise = await this.axiosInstance.post(url, requestBody, {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          });
+          pagePromises.push(promise);
+        }
+
+        const settledResults = await Promise.allSettled(pagePromises);
+
+        for (const result of settledResults) {
+          if (result.status === 'fulfilled') {
+            const response = result.value;
+            allRows.push(
+              ...response.data.data.map((row) => ({
+                id: row.Id,
+                Tipo_Consulta: type,
+                DocTipo: row.DocumentTypeId,
+              })),
+            );
+          } else {
+            console.error('Error fetching page:', result.reason);
+            // optionally: log, retry, or skip
+          }
+        }
+      }
+      console.log(
+        `Found ${allRows.length} documents for ${type},recordsTotal fro period: ${startDate} to ${endDate} is ${rowsQuantity}, replica RAILWAY_REPLICA_ID: ${process.env.RAILWAY_REPLICA_ID}`,
+      );
+
+      this.jobStatus[jobId].documentsFound += allRows.length;
+      await this.downloadFiles(allRows, downloadedFiles, jobId);
+      this.jobStatus[jobId].status = 'completed';
     } catch (error) {
       console.error(`Error in processAndDownload for ${type}:`, error);
       throw error;
     }
   }
 
-  private getDateFromRow(row: any): string {
-    try {
-      const date = row.fecha || row.date || row['Fecha'];
-      if (!date) {
-        throw new Error('Date not found in row');
-      }
-
-      // Convert from DD-MM-YYYY to YYYY-MM-DD
-      const [day, month, year] = date.split('-');
-      return `${year}-${month}-${day}`;
-    } catch (error) {
-      console.error('Error extracting date from row:', error);
-      console.error('Row data:', row);
-      throw error;
-    }
-  }
-
   private getYear(dateStr: string): number {
-    console.log('dateStr', dateStr);
-    console.log('type of', typeof dateStr);
-    console.log('split', dateStr.split('-'));
-    console.log('split[2]', dateStr.split('-')[0]);
-    console.log('parseInt', parseInt(dateStr.split('-')[0], 10));
-
     return parseInt(dateStr.split('-')[0], 10);
-  }
-
-  private tabulateDataFromHtml(
-    htmlContent: string,
-    type: string,
-    nit: string,
-  ): Record<string, any>[] {
-    let tabulatedData: Record<string, any>[] = [];
-
-    const headers = [
-      'Recepcion',
-      'Fecha',
-      'Prefijo',
-      'N_documento',
-      'Tipo',
-      'NIT Emisor',
-      'Emisor',
-      'NIT Receptor',
-      'Receptor',
-      'Resultado',
-      'Estado RADIAN',
-      'Valor Total',
-    ];
-
-    // Extract rows
-    const rowMatches = htmlContent.match(/<tr.*?>(.*?)<\/tr>/gs) || [];
-
-    for (const rowMatch of rowMatches) {
-      const rowContent = rowMatch.match(/<tr.*?>(.*?)<\/tr>/s)?.[1] || '';
-
-      // Extract trackId (data-id)
-      const trackId = rowMatch.match(/data-id="(.*?)"/)?.[1] || null;
-
-      // Extract data-type
-      const docTipo = rowMatch.match(/data-type="(.*?)"/)?.[1] || '';
-
-      // Extract cells (td)
-      const cellMatches = rowContent.match(/<td.*?>(.*?)<\/td>/gs) || [];
-      const cells = cellMatches.map((cell) =>
-        cell.replace(/<.*?>/g, '').trim(),
-      );
-
-      if (trackId && cells.length > 1) {
-        const rowData: Record<string, any> = {
-          id: trackId,
-        };
-
-        // Add columns in order
-        for (let i = 1; i < cells.length && i <= headers.length; i++) {
-          rowData[headers[i - 1]] = cells[i];
-
-          // After adding "Recepcion", add "DocTipo"
-          if (i === 1) {
-            rowData['DocTipo'] = docTipo;
-          }
-        }
-
-        tabulatedData.push(rowData);
-      }
-    }
-    // console.log('tabulatedData', tabulatedData);
-
-    // const validDocTipos = new Set(['96']);
-
-    // Filter using the same logic as .NET
-    // tabulatedData = tabulatedData.filter((row) => {
-    //   console.log('row', row);
-
-    //   if (!row.hasOwnProperty('DocTipo')) {
-    //     return false;
-    //   }
-
-    //   const docTipoValue = row['DocTipo']?.toString();
-
-    //   if (docTipoValue === null || docTipoValue === undefined) {
-    //     return false;
-    //   }
-
-    //   return true; // !validDocTipos.has(docTipoValue);
-    // });
-    //console.log('tabulatedData', tabulatedData);
-
-    return tabulatedData;
   }
 
   private async downloadFiles(
     rows: Record<string, any>[],
     downloadedFiles: string[],
+    jobId: string,
   ) {
     // Filter valid files first
     const validFiles = rows.filter(
       (row) => row['id'] && row['DocTipo'] === '01',
     );
-    console.log(`Starting to process ${validFiles.length} files in parallel`);
+    //console.log('validFiles', validFiles);
+
+    //console.log(`Starting to process ${validFiles.length} files in parallel`);
 
     // Process in batches to avoid overwhelming the server
     const BATCH_SIZE = 5;
     let successCount = 0;
-
     for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
+      const failedIds = [];
       const batch = validFiles.slice(i, i + BATCH_SIZE);
-      console.log(
-        `Processing batch ${Math.floor(i / BATCH_SIZE) + 1}, files ${
-          i + 1
-        }-${Math.min(i + BATCH_SIZE, validFiles.length)}`,
-      );
 
       const downloadPromises = batch.map(async (row) => {
         try {
           const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
           await this.downloadAndProcessZip(downloadUrl, row['Tipo_Consulta']);
+          this.jobStatus[jobId].documentsProcessed += 1;
           console.log(`Successfully processed ${row['id']}`);
           return true;
         } catch (error) {
-          console.error(`Failed to process ${row['id']}:`, error);
+          console.error(`Failed to process ${row['id']}:`);
+          failedIds.push({ id: row['id'], type: row['Tipo_Consulta'] });
           return false;
         }
       });
 
       // Process batch in parallel
-      const results = await Promise.all(downloadPromises);
-      successCount += results.filter((success) => success).length;
+      const results = await Promise.allSettled(downloadPromises);
+
+      // Count the number of successful promises
+      const successCountInBatch = results.filter(
+        (result) => result.status === 'fulfilled',
+      ).length;
+
+      if (failedIds.length > 0) {
+        const ids = failedIds.map((row) => row.id);
+        console.log(`Retrying failed IDs: ${ids.join(', ')}`);
+
+        // Retry logic for failed IDs
+        const retryPromises = failedIds.map(async (row) => {
+          try {
+            const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row.id}`;
+            await this.downloadAndProcessZip(downloadUrl, row.type);
+            this.jobStatus[jobId].documentsProcessed += 1;
+            console.log(`Successfully retried and processed ${row.id}`);
+          } catch (error) {
+            console.error(`Failed to retry processing ${row.id}:`, error);
+            // Optionally, you can keep track of failed retries if needed
+          }
+        });
+
+        // Wait for all retry promises to settle
+        await Promise.allSettled(retryPromises);
+      }
+      // If you want to accumulate successCount
+      successCount += successCountInBatch;
 
       // Small delay between batches to maintain session stability
       if (i + BATCH_SIZE < validFiles.length) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-
     console.log(
       `Successfully processed ${successCount} out of ${validFiles.length} files`,
     );
@@ -463,9 +422,18 @@ export class TableDownloadService {
         }
       });
 
-      await Promise.all(processPromises);
+      await Promise.allSettled(processPromises);
     } catch (error) {
-      console.error('Error downloading or processing ZIP:', error);
+      console.error('Error downloading or processing ZIP:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data?.toString?.() || error.response?.data,
+        headers: error.response?.headers,
+        stack: error.stack,
+      });
+      throw new Error(
+        `Failed to download or process ZIP file: ${error.message}`,
+      );
     }
   }
 
@@ -480,6 +448,7 @@ export class TableDownloadService {
         type,
         fileName,
       );
+      //console.log('Parsed XML result:', result);
 
       const [thirdParty, company] =
         type === 'Received'
@@ -744,6 +713,8 @@ export class TableDownloadService {
     type: 'Received' | 'Sent',
     fileName: string,
   ) {
+    //console.log('result', result);
+
     // Helper function to safely get value from nested structure
     const getNestedValue = (obj: any, key: string) => {
       if (!obj) return null;
@@ -899,7 +870,7 @@ export class TableDownloadService {
   }
 
   private createInvoiceLines(result: any) {
-    console.log('result', result);
+    //console.log('result', result);
     // First check if InvoiceLine exists in the result
     const invoiceLines = result['cac:InvoiceLine'] || result['InvoiceLine'];
     if (!invoiceLines) {
@@ -925,7 +896,7 @@ export class TableDownloadService {
 
   private processInvoiceLine(line: any, invoiceUuid: string) {
     if (!line) {
-      console.log('Empty line received');
+      //console.log('Empty line received');
       return null;
     }
 
@@ -1098,7 +1069,7 @@ export class TableDownloadService {
 
   // Clean up workers when service is destroyed
   async onApplicationShutdown() {
-    await Promise.all(
+    await Promise.allSettled(
       this.workers.map(
         (worker) =>
           new Promise<void>((resolve) => {
@@ -1107,5 +1078,9 @@ export class TableDownloadService {
           }),
       ),
     );
+  }
+
+  getJobStatus(jobId: string) {
+    return this.jobStatus[jobId] || { status: 'not found', progress: 0 };
   }
 }

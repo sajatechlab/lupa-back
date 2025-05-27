@@ -14,6 +14,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { InvoiceType } from './enums/invoice-type.enum';
 import { Response } from 'express';
+import { start } from 'repl';
 @Controller('invoices')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
@@ -23,8 +24,23 @@ export class InvoiceController {
   //   return this.invoiceService.create(createInvoiceDto);
   // }
   @Get('/')
-  findAll(@Query('type') type?: InvoiceType) {
-    return this.invoiceService.findAll(type);
+  findAll(
+    @Query('type') type?: InvoiceType,
+    @Query('startDate') startDate?: string, // Start date for range filtering
+    @Query('endDate') endDate?: string, // End date for range filtering
+    @Query('thirdPartyId') thirdPartyId?: string, // Filter by third party ID
+    @Query('quickFilter') quickFilter?: string, // Quick filter for invoice number, third party name, and NIT
+    @Query('sort') sort?: string, // JSON string for sorting
+  ) {
+    const sortCriteria = sort ? JSON.parse(sort) : []; // Parse JSON string for sorting
+    return this.invoiceService.findAll(
+      type,
+      sortCriteria,
+      startDate,
+      endDate,
+      thirdPartyId,
+      quickFilter,
+    );
   }
 
   // @Get(':id')
