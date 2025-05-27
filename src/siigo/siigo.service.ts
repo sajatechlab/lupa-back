@@ -166,7 +166,6 @@ export class SiigoService {
   async createPurchasesFromInvoices(companyId: string, invoiceData: any[]) {
     try {
       const invoiceIds = invoiceData.map((data) => data.invoiceId);
-
       const { token } = await this.getAuthToken(companyId);
       const invoices = await this.invoiceRepository.findInvoicesWithRelations(
         invoiceIds,
@@ -176,124 +175,144 @@ export class SiigoService {
       const results = [];
 
       // Process each invoice
-      for (const invoice of invoices) {
-        const invoiceFrontData = invoiceData.find(
-          (data) => data.invoiceId === invoice.uuid,
-        );
-        // const documentId = invoiceData.find(
-        //   (data) => data.invoiceId === invoice.uuid,
-        // )?.documentId;
-        // const documentType = documentTypes.find(
-        //   (type) => (type.id = documentId),
-        // );
-        const siigoPurchaseData = {
-          document: {
-            id: invoiceFrontData.documentTypeId,
-          },
-          date: invoice.issueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD1
-          provider_invoice: {
-            prefix: invoice.prefix,
-            number: invoice.invoiceNumber.substring(invoice.prefix.length),
-          },
-          supplier: {
-            identification: invoice.thirdParty?.nit,
-          },
-          // TODO: ADD DISCOUNT TYPE
-          observations: invoice.note || '',
-          retentions: [
-            ...(invoiceFrontData.reteICAId
-              ? [{ id: invoiceFrontData.reteICAId }]
-              : []),
-            ...(invoiceFrontData.reteIVAId
-              ? [{ id: invoiceFrontData.reteIVAId }]
-              : []),
-          ],
-          items: invoiceFrontData.lines.map((line) => {
-            const lineDB = invoice.lines.find(
-              (l: InvoiceLine) => l.lineID === line.lineId,
-            );
-            const taxPrimary =
-              lineDB.taxSchemeName &&
-              taxesType.find(
-                (tax) =>
-                  tax.type === lineDB.taxSchemeName &&
-                  tax.percentage === Number(lineDB.taxPercent),
+      const promises = invoices.map(async (invoice) => {
+        try {
+          const invoiceFrontData = invoiceData.find(
+            (data) => data.invoiceId === invoice.uuid,
+          );
+          if (!invoiceFrontData)
+            throw new Error(`No front data for invoice ${invoice.uuid}`);
+          const siigoPurchaseData = {
+            document: {
+              id: invoiceFrontData.documentTypeId,
+            },
+            date: invoice.issueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD1
+            provider_invoice: {
+              prefix: invoice.prefix,
+              number: invoice.invoiceNumber.substring(invoice.prefix.length),
+            },
+            supplier: {
+              identification: invoice.thirdParty?.nit,
+            },
+            // TODO: ADD DISCOUNT TYPE
+            observations: invoice.note || '',
+            retentions: [
+              ...(invoiceFrontData.reteICAId
+                ? [{ id: invoiceFrontData.reteICAId }]
+                : []),
+              ...(invoiceFrontData.reteIVAId
+                ? [{ id: invoiceFrontData.reteIVAId }]
+                : []),
+            ],
+            items: invoiceFrontData.lines.map((line) => {
+              const lineDB = invoice.lines.find(
+                (l: InvoiceLine) => l.lineID === line.lineId,
               );
-            const taxSecondary =
-              lineDB.taxSchemeNameSecondary &&
-              taxesType.find(
-                (tax) =>
-                  tax.type === lineDB.taxSchemeNameSecondary &&
-                  tax.percentage === Number(lineDB.taxPercentSecondary),
-              );
-            return {
-              type: line.lineType,
-              code: line.productId,
-              description: line.description,
-              quantity: Number(line.quantity),
-              price: line.unitPrice,
-              discount: line.discountAmount,
-              taxes: [
-                ...(taxPrimary ? [{ id: taxPrimary.id }] : []),
-                ...(line.taxSecondary ? [{ id: taxSecondary.id }] : []),
-                ...(line.retentionId ? [{ id: line.retentionId }] : []),
-              ],
-            };
-          }),
-          payments: [
+              const taxPrimary =
+                lineDB.taxSchemeName &&
+                taxesType.find(
+                  (tax) =>
+                    tax.type === lineDB.taxSchemeName &&
+                    tax.percentage === Number(lineDB.taxPercent),
+                );
+              const taxSecondary =
+                lineDB.taxSchemeNameSecondary &&
+                taxesType.find(
+                  (tax) =>
+                    tax.type === lineDB.taxSchemeNameSecondary &&
+                    tax.percentage === Number(lineDB.taxPercentSecondary),
+                );
+              return {
+                type: line.lineType,
+                code: line.productId,
+                description: line.description,
+                quantity: Number(line.quantity),
+                price: line.unitPrice,
+                discount: line.discountAmount,
+                taxes: [
+                  ...(taxPrimary ? [{ id: taxPrimary.id }] : []),
+                  ...(line.taxSecondary ? [{ id: taxSecondary.id }] : []),
+                  ...(line.retentionId ? [{ id: line.retentionId }] : []),
+                ],
+              };
+            }),
+            payments: [
+              {
+                id: invoiceFrontData.paymentTypeId,
+                value:
+                  Number(Number(invoiceFrontData.finalTotal).toFixed(0)) || 0,
+                ...(invoice.dueDate
+                  ? {
+                      due_date:
+                        typeof invoice.dueDate === 'string'
+                          ? invoice.dueDate
+                          : invoice.dueDate.toISOString().split('T')[0],
+                    }
+                  : {
+                      due_date: invoice.issueDate.toISOString().split('T')[0],
+                    }),
+              },
+            ],
+          };
+          console.log('siigoPurchaseData', siigoPurchaseData);
+          // Make the API call to Siigo
+          const response = await axios.post(
+            `${this.API_URL}v1/purchases`,
+            siigoPurchaseData,
             {
-              id: invoiceFrontData.paymentTypeId,
-              value:
-                Number(Number(invoiceFrontData.finalTotal).toFixed(0)) || 0,
-              ...(invoice.dueDate
-                ? {
-                    due_date:
-                      typeof invoice.dueDate === 'string'
-                        ? invoice.dueDate
-                        : invoice.dueDate.toISOString().split('T')[0],
-                  }
-                : {
-                    due_date: invoice.issueDate.toISOString().split('T')[0],
-                  }),
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Partner-Id': 'Lupa',
+              },
             },
-          ],
-        };
-        console.log('siigoPurchaseData', siigoPurchaseData);
-        // Make the API call to Siigo
-        const response = await axios.post(
-          `${this.API_URL}v1/purchases`,
-          siigoPurchaseData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'Partner-Id': 'Lupa',
-            },
-          },
-        );
-        console.log('response.data', response.data);
-        results.push({
-          invoiceId: invoice.uuid,
-          siigoResponse: response.data,
-        });
-      }
-
-      return results;
-    } catch (error) {
-      console.error('Error creating purchases in Siigo:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        params: error.response?.data?.errors?.[0]?.params,
-        message: error.message,
+          );
+          return {
+            status: 'fulfilled',
+            invoiceId: invoice.uuid,
+            data: response.data,
+          };
+        } catch (error) {
+          return {
+            status: 'rejected',
+            invoiceId: invoice.uuid,
+            error: error.response?.data || error.message,
+          };
+        }
       });
 
-      console.log('Error Params:', error.response?.data);
+      const settledResults = await Promise.allSettled(promises);
 
+      const successes = settledResults
+        .filter((r) => r.status === 'fulfilled')
+        .map((r: any) => ({
+          invoiceId: r.value.invoiceId,
+          siigoResponse: r.value.data,
+        }));
+
+      const failures = settledResults
+        .filter((r) => r.status === 'rejected')
+        .map((r: any) => r.reason);
+
+      // ✅ Update isPosted = true directly on loaded invoice entities
+      const updatedInvoices = invoices
+        .filter((invoice) =>
+          successes.some((s) => s.invoiceId === invoice.uuid),
+        )
+        .map((invoice) => {
+          invoice.isPosted = true;
+          return invoice;
+        });
+
+      if (updatedInvoices.length > 0) {
+        await this.invoiceRepository.save(updatedInvoices);
+      }
+
+      return { successes, failures };
+    } catch (outerError) {
+      console.error('General error during purchases creation:', outerError);
       throw new HttpException(
-        `Failed to create purchase in Siigo: ${JSON.stringify(
-          error.response?.data || error.message,
-        )}`,
+        `Setup failed: ${JSON.stringify(outerError.message || outerError)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
