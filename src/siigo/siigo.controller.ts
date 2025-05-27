@@ -31,15 +31,15 @@ export class SiigoController {
   @UsePipes(new ValidationPipe({ transform: true }))
   async createPurchasesFromInvoices(
     @Param('companyId') companyId: string,
-    @Body() createPurchasesDto: CreatePurchasesDto,
+    @Body() createPurchasesDto: any,
   ) {
-    if (!createPurchasesDto || !createPurchasesDto.invoiceIds) {
-      throw new BadRequestException('Missing invoiceIds in request body');
-    }
+    // if (!createPurchasesDto || !createPurchasesDto.invoiceData) {
+    //   throw new BadRequestException('Missing invoiceIds in request body');
+    // }
 
     return this.siigoService.createPurchasesFromInvoices(
       companyId,
-      createPurchasesDto.invoiceIds,
+      createPurchasesDto.purchases,
     );
   }
 
@@ -52,5 +52,20 @@ export class SiigoController {
   @Get('companies/:companyId/products')
   async getProducts(@Param('companyId') companyId: string) {
     return this.siigoService.getProducts(companyId);
+  }
+
+  @Get('companies/:companyId/taxes')
+  async getTaxes(@Param('companyId') companyId: string) {
+    return this.siigoService.getTaxes(companyId);
+  }
+
+  @Get('companies/:companyId/fixed-assets')
+  async getFixedAssets(@Param('companyId') companyId: string) {
+    return this.siigoService.getFixedAssets(companyId);
+  }
+
+  @Get('companies/:companyId/payments-type')
+  async getPaymentsType(@Param('companyId') companyId: string) {
+    return this.siigoService.getPaymentsType(companyId);
   }
 }

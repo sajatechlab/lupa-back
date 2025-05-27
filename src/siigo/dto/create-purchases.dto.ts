@@ -3,6 +3,13 @@ import { Type } from 'class-transformer';
 
 export class CreatePurchasesDto {
   @IsArray()
-  @IsString({ each: true })
-  invoiceIds: string[];
+  invoiceData: InvoiceData[];
+}
+
+export class InvoiceData {
+  @IsString()
+  invoiceId: string;
+
+  @IsString()
+  documentId: string;
 }
