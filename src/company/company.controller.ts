@@ -119,4 +119,10 @@ export class CompanyController {
   async getProviderConfig(@Param('id') id: string) {
     return this.companyService.getProviderConfig(id);
   }
+
+  @Get(':id/dashboard')
+  @UseGuards(JwtAuthGuard)
+  async getCompanyDashboard(@Param('id') id: string) {
+    return this.companyService.getCompanyDashboard(id);
+  }
 }

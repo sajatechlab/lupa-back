@@ -261,4 +261,124 @@ export class InvoiceRepository {
       },
     };
   }
+
+  async save(invoices: Invoice[]): Promise<Invoice[]> {
+    return this.invoiceRepository.save(invoices);
+  }
+
+  async getCompanyDashboardMetrics(companyId: string) {
+    // Get oldest invoice date
+    const oldestInvoice = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .where('invoice.companyId = :companyId', { companyId })
+      .orderBy('invoice.issueDate', 'ASC')
+      .select('invoice.issueDate')
+      .getOne();
+
+    // Get basic invoice counts
+    const invoiceCounts = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .where('invoice.companyId = :companyId', { companyId })
+      .select([
+        'COUNT(CASE WHEN invoice.type = :received THEN 1 END) as "receivedCount"',
+        'COUNT(CASE WHEN invoice.type = :sent THEN 1 END) as "sentCount"',
+        'COUNT(CASE WHEN invoice.isPosted = true THEN 1 END) as "postedCount"',
+        'COALESCE(SUM(CASE WHEN invoice.type = :received THEN invoice."invoiceTaxTotalTaxAmount" ELSE 0 END), 0) as "receivedTaxTotal"',
+        'COALESCE(SUM(CASE WHEN invoice.type = :sent THEN invoice."invoiceTaxTotalTaxAmount" ELSE 0 END), 0) as "sentTaxTotal"',
+      ])
+      .setParameter('received', 'RECEIVED')
+      .setParameter('sent', 'SENT')
+      .getRawOne();
+
+    // Get monthly incomes (last 6 months)
+    const monthlyIncomes = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .where('invoice.companyId = :companyId', { companyId })
+      .andWhere('invoice.type = :type', { type: 'SENT' })
+      .andWhere('invoice.issueDate >= :sixMonthsAgo', {
+        sixMonthsAgo: new Date(new Date().setMonth(new Date().getMonth() - 6)),
+      })
+      .select([
+        "DATE_TRUNC('month', invoice.issueDate) as month",
+        'SUM(invoice."invoiceTaxInclusiveAmount") as amount',
+      ])
+      .groupBy('month')
+      .orderBy('month', 'DESC')
+      .getRawMany();
+
+    // Get monthly outcomes (last 6 months)
+    const monthlyOutcomes = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .where('invoice.companyId = :companyId', { companyId })
+      .andWhere('invoice.type = :type', { type: 'RECEIVED' })
+      .andWhere('invoice.issueDate >= :sixMonthsAgo', {
+        sixMonthsAgo: new Date(new Date().setMonth(new Date().getMonth() - 6)),
+      })
+      .select([
+        "DATE_TRUNC('month', invoice.issueDate) as month",
+        'SUM(invoice."invoiceTaxInclusiveAmount") as amount',
+      ])
+      .groupBy('month')
+      .orderBy('month', 'DESC')
+      .getRawMany();
+
+    // Get top 5 clients
+    const topClients = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .leftJoin('invoice.thirdParty', 'thirdParty')
+      .where('invoice.companyId = :companyId', { companyId })
+      .andWhere('invoice.type = :type', { type: 'SENT' })
+      .select([
+        'thirdParty.name as name',
+        'SUM(invoice."invoiceTaxInclusiveAmount") as total',
+      ])
+      .groupBy('thirdParty.name')
+      .orderBy('total', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    // Get top 5 suppliers
+    const topSuppliers = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .leftJoin('invoice.thirdParty', 'thirdParty')
+      .where('invoice.companyId = :companyId', { companyId })
+      .andWhere('invoice.type = :type', { type: 'RECEIVED' })
+      .select([
+        'thirdParty.name as name',
+        'SUM(invoice."invoiceTaxInclusiveAmount") as total',
+      ])
+      .groupBy('thirdParty.name')
+      .orderBy('total', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    return {
+      oldestInvoiceDate: oldestInvoice?.issueDate,
+      invoiceCounts: {
+        received: Number(invoiceCounts.receivedCount),
+        sent: Number(invoiceCounts.sentCount),
+        posted: Number(invoiceCounts.postedCount),
+      },
+      taxTotals: {
+        received: Number(invoiceCounts.receivedTaxTotal),
+        sent: Number(invoiceCounts.sentTaxTotal),
+      },
+      monthlyIncomes: monthlyIncomes.map((item) => ({
+        month: item.month,
+        amount: Number(item.amount),
+      })),
+      monthlyOutcomes: monthlyOutcomes.map((item) => ({
+        month: item.month,
+        amount: Number(item.amount),
+      })),
+      topClients: topClients.map((item) => ({
+        name: item.name,
+        total: Number(item.total),
+      })),
+      topSuppliers: topSuppliers.map((item) => ({
+        name: item.name,
+        total: Number(item.total),
+      })),
+    };
+  }
 }

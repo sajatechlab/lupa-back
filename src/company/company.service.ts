@@ -343,4 +343,8 @@ export class CompanyService {
     }
     return { message: 'No specific configuration for the selected provider' };
   }
+
+  async getCompanyDashboard(companyId: string) {
+    return this.invoiceRepository.getCompanyDashboardMetrics(companyId);
+  }
 }
