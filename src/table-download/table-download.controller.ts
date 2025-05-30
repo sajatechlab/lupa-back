@@ -1,43 +1,45 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { TableDownloadService } from './table-download.service';
-import * as crypto from 'crypto';
+import { SentInvoicesQueue } from './sent-invoices.queue';
+import { ReceivedInvoicesQueue } from './received-invoices.queue';
+
 @Controller('table-download')
 export class TableDownloadController {
-  constructor(private readonly tableDownloadService: TableDownloadService) {}
+  constructor(
+    private readonly tableDownloadService: TableDownloadService,
+    private readonly sentInvoicesQueue: SentInvoicesQueue,
+    private readonly receivedInvoicesQueue: ReceivedInvoicesQueue,
+  ) {}
 
   @Post()
-  async downloadAndTabulate(@Body() params: any) {
-    console.log('prueba');
+  async download(
+    @Body()
+    data: {
+      authUrl: string;
+      startDate: string;
+      endDate: string;
+      recibidos: boolean;
+      enviados: boolean;
+      nit: string;
+      jobId: string;
+    },
+  ) {
+    const job = data.recibidos
+      ? await this.receivedInvoicesQueue.addJob(data)
+      : await this.sentInvoicesQueue.addJob(data);
 
-    const {
-      authUrl,
-      startDate,
-      endDate,
-      downloadPath,
-      recibidos,
-      enviados,
-      nit,
-    } = params;
-    const jobId = crypto.randomUUID(); // Generate a unique job ID
-    this.tableDownloadService.authenticateTabulateAndDownload(
-      authUrl,
-      startDate,
-      endDate,
-      recibidos,
-      enviados,
-      nit,
-      jobId,
-    );
-
-    await new Promise(resolve => setTimeout(resolve, 120000));
+    await new Promise((resolve) => setTimeout(resolve, 120000));
     return {
-      message: 'Download started',
-      jobId: jobId,
+      jobId: job.id,
+      message: 'Download job queued successfully',
     };
   }
 
-  @Get('job-status/:jobId')
-  async getJobStatus(@Param('jobId') jobId: string) {
-    return this.tableDownloadService.getJobStatus(jobId);
+  @Post('status')
+  async getJobStatus(@Body('jobId') jobId: string) {
+    return (
+      this.sentInvoicesQueue.getJobStatus(jobId) ||
+      this.receivedInvoicesQueue.getJobStatus(jobId)
+    );
   }
 }

@@ -11,25 +11,29 @@ import { JwtGlobalAuthGuard } from './auth/guards/jwt-global-auth.guard';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { SiigoModule } from './siigo/siigo.module';
 import { OtpModule } from './otp/otp.module';
+import { BullModule } from '@nestjs/bull';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: configService.get('DB_PORT'),
-        username: configService.get('DB_USERNAME'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_NAME'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        autoLoadEntities: true,
-        synchronize: true, //configService.get('NODE_ENV') !== 'production',
-        migrations: [__dirname + '/migrations/*{.ts,.js}'],
-        migrationsRun: configService.get('NODE_ENV') !== 'development',
-      }),
+      useFactory: (configService: ConfigService) => {
+        return {
+          type: 'postgres',
+          host: configService.get('DB_HOST'),
+          port: configService.get('DB_PORT'),
+          username: configService.get('DB_USERNAME'),
+          password: configService.get('DB_PASSWORD'),
+          database: configService.get('DB_NAME'),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          autoLoadEntities: true,
+          synchronize: true,
+          migrations: [__dirname + '/migrations/*{.ts,.js}'],
+          migrationsRun: configService.get('NODE_ENV') !== 'development',
+        };
+      },
     }),
     UserModule,
     CompanyModule,
@@ -39,6 +43,9 @@ import { OtpModule } from './otp/otp.module';
     AttachmentsModule,
     SiigoModule,
     OtpModule,
+    BullModule.forRoot({
+      redis: process.env.REDIS_URL,
+    }),
   ],
   providers: [
     {
