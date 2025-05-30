@@ -17,19 +17,38 @@ import { OtpModule } from './otp/otp.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: configService.get('DB_PORT'),
-        username: configService.get('DB_USERNAME'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_NAME'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        autoLoadEntities: true,
-        synchronize: true, //configService.get('NODE_ENV') !== 'production',
-        migrations: [__dirname + '/migrations/*{.ts,.js}'],
-        migrationsRun: configService.get('NODE_ENV') !== 'development',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const isLocal = configService.get('NODE_ENV') === 'development';
+
+        if (isLocal) {
+          return {
+            type: 'postgres',
+            host: configService.get('DB_HOST'),
+            port: configService.get('DB_PORT'),
+            username: configService.get('DB_USERNAME'),
+            password: configService.get('DB_PASSWORD'),
+            database: configService.get('DB_NAME'),
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            autoLoadEntities: true,
+            synchronize: true,
+            migrations: [__dirname + '/migrations/*{.ts,.js}'],
+            migrationsRun: configService.get('NODE_ENV') !== 'development',
+          };
+        } else {
+          return {
+            type: 'postgres',
+            url: configService.get('DATABASE_URL'),
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            autoLoadEntities: true,
+            synchronize: true,
+            migrations: [__dirname + '/migrations/*{.ts,.js}'],
+            migrationsRun: configService.get('NODE_ENV') !== 'development',
+            ssl: {
+              rejectUnauthorized: false, // Required for some cloud providers
+            },
+          };
+        }
+      },
     }),
     UserModule,
     CompanyModule,
