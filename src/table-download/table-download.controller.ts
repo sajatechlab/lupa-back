@@ -24,9 +24,10 @@ export class TableDownloadController {
       jobId: string;
     },
   ) {
-    const job = data.recibidos
-      ? await this.receivedInvoicesQueue.addJob(data)
-      : await this.sentInvoicesQueue.addJob(data);
+    const job = await this.sentInvoicesQueue.addJob(data);
+    // data.recibidos
+    //   ? await this.receivedInvoicesQueue.addJob(data)
+    //   : await this.sentInvoicesQueue.addJob(data);
 
     await new Promise((resolve) => setTimeout(resolve, 120000));
     return {
@@ -37,9 +38,7 @@ export class TableDownloadController {
 
   @Post('status')
   async getJobStatus(@Body('jobId') jobId: string) {
-    return (
-      this.sentInvoicesQueue.getJobStatus(jobId) ||
-      this.receivedInvoicesQueue.getJobStatus(jobId)
-    );
+    return this.sentInvoicesQueue.getJobStatus(jobId);
+    // || this.receivedInvoicesQueue.getJobStatus(jobId)
   }
 }
