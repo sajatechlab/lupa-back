@@ -4,6 +4,11 @@ import { Repository } from 'typeorm';
 import { Company } from './entities/company.entity';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { CreateAuthDianUrlDto } from './dto/create-auth-dian-url.dto';
+
+interface CompanyWithUsers extends Company {
+  hasUsers: boolean;
+}
+
 @Injectable()
 export class CompanyRepository {
   constructor(
@@ -25,10 +30,21 @@ export class CompanyRepository {
     });
   }
 
-  async findByNit(nit: string): Promise<Company> {
-    return this.companyRepository.findOne({
-      where: { nit },
-    });
+  async findByNit(nit: string): Promise<CompanyWithUsers> {
+    const company = await this.companyRepository
+      .createQueryBuilder('company')
+      .where('company.nit = :nit', { nit })
+      .getOne();
+
+    if (company) {
+      const hasUsers = await this.companyRepository.query(
+        'SELECT EXISTS(SELECT 1 FROM user_companies WHERE company_id = $1)',
+        [company.id],
+      );
+      return { ...company, hasUsers: hasUsers[0].exists };
+    }
+
+    return null;
   }
 
   async create(data: Partial<Company>): Promise<Company> {

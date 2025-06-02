@@ -33,11 +33,17 @@ export class CompanyService {
     const existingCompany = await this.companyRepository.findByNit(
       createCompanyDto.nit,
     );
-    console.log('existingCompany', existingCompany);
+
     if (existingCompany) {
-      throw new BadRequestException('Company already exists');
+      if (existingCompany.hasUsers) {
+        throw new BadRequestException('Company already exists');
+      } else {
+        await this.userRepository.update(userId, {
+          company: existingCompany,
+        });
+        return existingCompany;
+      }
     }
-    console.log('existingCompany', existingCompany);
 
     const company = await this.companyRepository.create(createCompanyDto);
     console.log('company', company);
