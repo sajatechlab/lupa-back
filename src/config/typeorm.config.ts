@@ -10,46 +10,15 @@ import { SoftwareProvider } from '../software-provider/entities/software-provide
 dotenv.config();
 
 const configService = new ConfigService();
-const isLocal = configService.get('NODE_ENV') === 'development';
 
-const dbConfig = isLocal
-  ? {
+const dbConfig = 
+  {
       host: configService.get('DB_HOST'),
       port: parseInt(configService.get('DB_PORT') || '5432'),
       username: configService.get('DB_USERNAME'),
       password: configService.get('DB_PASSWORD'),
       database: configService.get('DB_NAME'),
-    }
-  : {
-      url: configService.get('DATABASE_URL'),
-      ssl: {
-        rejectUnauthorized: false,
-      },
     };
-
-// Validate required configuration
-if (isLocal) {
-  const requiredFields = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_NAME'];
-  const missingFields = requiredFields.filter(
-    (field) => !configService.get(field),
-  );
-  if (missingFields.length > 0) {
-    throw new Error(
-      `Missing required database configuration: ${missingFields.join(', ')}`,
-    );
-  }
-} else if (!configService.get('DATABASE_URL')) {
-  throw new Error('DATABASE_URL is required for non-local environment');
-}
-
-
-const dbConfig = {
-  host: configService.get('DB_HOST'),
-  port: parseInt(configService.get('DB_PORT') || '5432'),
-  username: configService.get('DB_USERNAME'),
-  password: configService.get('DB_PASSWORD'),
-  database: configService.get('DB_NAME'),
-};
 
 export default new DataSource({
   type: 'postgres',
