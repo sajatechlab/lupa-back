@@ -4,6 +4,11 @@ import * as cookieParser from 'cookie-parser';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { createBullBoard } from '@bull-board/api';
+import { BullAdapter } from '@bull-board/api/bullAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+import { Queue } from 'bull';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
@@ -70,9 +75,28 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  // Get the queue instance
+  const sentInvoicesQueue = app.get<Queue>('BullQueue_sent-invoices');
+  const receivedInvoicesQueue = app.get<Queue>('BullQueue_received-invoices');
+
+  const serverAdapter = new ExpressAdapter();
+  createBullBoard({
+    queues: [
+      new BullAdapter(sentInvoicesQueue),
+      new BullAdapter(receivedInvoicesQueue),
+    ],
+    serverAdapter,
+  });
+
+  serverAdapter.setBasePath('/admin/queues');
+  app.use('/admin/queues', serverAdapter.getRouter());
+
   const port = process.env.PORT || 3000;
   // Listen on all interfaces (0.0.0.0)
   await app.listen(port, '0.0.0.0');
+  // Add this log
+  console.log('Redis URL:', process.env.REDIS_URL);
+
   console.log(`Application is running on port ${port}`);
 }
 bootstrap();

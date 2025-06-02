@@ -42,6 +42,15 @@ if (isLocal) {
   throw new Error('DATABASE_URL is required for non-local environment');
 }
 
+
+const dbConfig = {
+  host: configService.get('DB_HOST'),
+  port: parseInt(configService.get('DB_PORT') || '5432'),
+  username: configService.get('DB_USERNAME'),
+  password: configService.get('DB_PASSWORD'),
+  database: configService.get('DB_NAME'),
+};
+
 export default new DataSource({
   type: 'postgres',
   ...dbConfig,
