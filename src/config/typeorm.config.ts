@@ -11,13 +11,15 @@ dotenv.config();
 
 const configService = new ConfigService();
 
-const dbConfig = {
+const dbConfig = 
+  {
       host: configService.get('DB_HOST'),
       port: parseInt(configService.get('DB_PORT') || '5432'),
       username: configService.get('DB_USERNAME'),
       password: configService.get('DB_PASSWORD'),
       database: configService.get('DB_NAME'),
-    }
+    };
+
 
 export default new DataSource({
   type: 'postgres',
