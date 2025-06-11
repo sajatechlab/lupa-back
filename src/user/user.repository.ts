@@ -31,12 +31,9 @@ export class UserRepository {
 
   async update(id: number, data: any) {
     const user = await this.userRepository.findOne({ where: { id } });
-    const company = await this.companyRepository.findOne({
-      where: { id: data.id },
-    });
 
-    if (user && company) {
-      user.companies = [...(user.companies || []), company];
+    if (user && data.company) {
+      user.companies = [...(user.companies || []), data.company];
       return this.userRepository.save(user);
     }
   }
