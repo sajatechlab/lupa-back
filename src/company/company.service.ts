@@ -45,11 +45,19 @@ export class CompanyService {
       }
     }
 
-    const company = await this.companyRepository.create(createCompanyDto);
-    console.log('company', company);
+    try {
+      const company = await this.companyRepository.create(createCompanyDto);
+      console.log('company', company);
 
-    await this.userRepository.update(userId, company);
-    return company;
+      await this.userRepository.update(userId, company);
+      return company;
+    } catch (error) {
+      if (error.code === '23505') {
+        // PostgreSQL unique violation error code
+        throw new BadRequestException('Company with this NIT already exists');
+      }
+      throw error;
+    }
   }
 
   findAll() {
