@@ -20,6 +20,7 @@ const dbConfig =
       database: configService.get('DB_NAME'),
     };
 
+
 export default new DataSource({
   type: 'postgres',
   ...dbConfig,
