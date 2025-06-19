@@ -43,6 +43,7 @@
     "@types/random-useragent": "^0.3.3",
     "@types/xlsx": "^0.0.36",
     "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.7.9",
     "axios-cookiejar-support": "^5.0.5",
