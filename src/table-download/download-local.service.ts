@@ -448,8 +448,11 @@ export class DownloadLocalService {
       const rows = await this.getRows('Sent', startDate, endDate, nit);
       allRows.push(...rows);
     }
-    console.log('allRows', allRows);
+    console.log('startDate', startDate);
+    console.log('endDate', endDate);
 
+    console.log('allRows', allRows);
+    return;
     // Step 3: Download files and build ZIP
     return await this.downloadFiles(allRows, downloadedFiles);
   }
@@ -498,7 +501,7 @@ export class DownloadLocalService {
         id: row.Id,
         Tipo_Consulta: type,
         DocTipo: row.DocumentTypeId,
-        date: row.EmissionDate,
+        date: this.parseDotNetDate(row.EmissionDate),
       })),
     );
 
@@ -545,7 +548,7 @@ export class DownloadLocalService {
               id: row.Id,
               Tipo_Consulta: type,
               DocTipo: row.DocumentTypeId,
-              date: row.EmissionDate,
+              date: this.parseDotNetDate(row.EmissionDate),
             })),
           );
         }
