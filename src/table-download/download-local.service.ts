@@ -187,12 +187,9 @@ export class DownloadLocalService {
       `Downloading ZIP from ${url} for ${type} on date ${date} with ID ${id}`,
     );
 
-    const dateFormate = this.parseDotNetDate(date);
-    console.log(`Parsed date: ${dateFormate}`);
-
-    //const fullDate = new Date(date);
-    const year = '2025';
-    const month = String(dateFormate.getMonth() + 1).padStart(2, '0') || '10';
+    const fullDate = new Date(date);
+    const year = String(fullDate.getFullYear()).padStart(4, '0');
+    const month = String(fullDate.getMonth() + 1).padStart(2, '0');
     const folderType = type === 'Received' ? 'RECIBIDOS' : 'ENVIADOS';
 
     const response = await axiosInstance.get(url, {
