@@ -45,9 +45,7 @@ export class DownloadLocalService {
     @InjectRepository(SoftwareProvider)
     private softwareProviderRepository: Repository<SoftwareProvider>,
     private readonly attachmentsService: AttachmentsService,
-  ) {
-    }
-
+  ) {}
 
   private getYear(dateStr: string): number {
     return parseInt(dateStr.split('-')[0], 10);
