@@ -13,7 +13,7 @@ import { Invoice } from '../invoice/entities/invoice.entity';
 import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
 import { SoftwareProvider } from '../software-provider/entities/software-provider.entity';
 import { AttachmentsModule } from '../attachments/attachments.module';
-
+import { DownloadLocalService } from './download-local.service';
 @Module({
   imports: [
     HttpModule,
@@ -33,7 +33,13 @@ import { AttachmentsModule } from '../attachments/attachments.module';
     SentInvoicesQueue,
     ReceivedInvoicesProcessor,
     SentInvoicesProcessor,
+    DownloadLocalService,
   ],
-  exports: [TableDownloadService, ReceivedInvoicesQueue, SentInvoicesQueue],
+  exports: [
+    TableDownloadService,
+    ReceivedInvoicesQueue,
+    SentInvoicesQueue,
+    DownloadLocalService,
+  ],
 })
 export class TableDownloadModule {}
