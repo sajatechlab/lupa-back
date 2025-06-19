@@ -27,7 +27,6 @@ enum InvoiceType {
 
 @Injectable()
 export class DownloadLocalService {
-  private readonly axiosInstance;
   private workers: Worker[] = [];
   private workerIndex = 0;
   private readonly MAX_WORKERS = 8; // Adjust based on CPU cores
@@ -47,201 +46,8 @@ export class DownloadLocalService {
     private softwareProviderRepository: Repository<SoftwareProvider>,
     private readonly attachmentsService: AttachmentsService,
   ) {
-    // Initialize Axios with cookie jar support
-    const jar = new CookieJar();
-    this.axiosInstance = wrapper(axios.create({ jar, withCredentials: true }));
-  }
-  async authenticateTabulateAndDownload(
-    authUrl: string,
-    startDate: string,
-    endDate: string,
-    recibidos: boolean,
-    enviados: boolean,
-    nit: string,
-  ): Promise<{
-    tabulatedData: Record<string, any>[];
-    downloadedFiles: string[];
-    totalSeconds: number;
-    avgSecondsPerDoc: number;
-  }> {
-    const startTime = Date.now();
-    const tabulatedData: Record<string, any>[] = [];
-    const downloadedFiles: string[] = [];
-    console.log('url', authUrl);
-
-    try {
-      // Step 1: Authentication
-      const authResponse = await this.axiosInstance.get(authUrl);
-      if (authResponse.status !== 200) {
-        throw new Error(
-          `Authentication failed with status ${authResponse.status}`,
-        );
-      }
-
-      // Step 2: Process both types in parallel
-
-      if (recibidos) {
-        console.log('Processing received documents...');
-
-        await this.processAndDownload(
-          'Received',
-          tabulatedData,
-          downloadedFiles,
-          startDate,
-          endDate,
-          nit,
-        );
-      }
-
-      if (enviados) {
-        console.log('Processing sent documents...');
-        await this.processAndDownload(
-          'Sent',
-          tabulatedData,
-          downloadedFiles,
-          startDate,
-          endDate,
-          nit,
-        );
-      }
-
-      const totalSeconds = (Date.now() - startTime) / 1000;
-      const avgSecondsPerDoc =
-        downloadedFiles.length > 0 ? totalSeconds / downloadedFiles.length : 0;
-
-      console.log('difference in minutes', (Date.now() - startTime) / 60000);
-      return { tabulatedData, downloadedFiles, totalSeconds, avgSecondsPerDoc };
-    } catch (error) {
-      console.error('Error in authenticateTabulateAndDownload:', error);
-      throw error;
     }
-  }
 
-  private async processAndDownload(
-    type: string,
-    tabulatedData: Record<string, any>[],
-    downloadedFiles: string[],
-    startDate: string,
-    endDate: string,
-    nit: string,
-  ): Promise<void> {
-    try {
-      const url = `https://catalogo-vpfe.dian.gov.co/Document/GetDocumentsPageToken`;
-      //console.log(`Processing data from: ${url}`);
-      const sameYear = this.getYear(endDate) === this.getYear(startDate);
-      let currentStartDate = sameYear
-        ? startDate
-        : `${this.getYear(endDate)}-01-01`;
-      let currentEndDate = endDate;
-      let hasMoreData = true;
-      const allRows = [];
-      const pagePromises = [];
-
-      const filterType = type === 'Received' ? '3' : '2';
-
-      const requestBody = {
-        draw: 1,
-        start: 0,
-        length: 50,
-        DocumentKey: '',
-        SerieAndNumber: '',
-        SenderCode: '',
-        ReceiverCode: '',
-        StartDate: currentStartDate,
-        EndDate: currentEndDate,
-        DocumentTypeId: '01', // "Todos"
-        Status: '0', // "Todos"
-        IsNextPage: false,
-        FilterType: filterType,
-        blockIndex: 0,
-      };
-      const response = await this.axiosInstance.post(url, requestBody, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      //console.log('response', response.data);
-
-      if (response.status !== 200) {
-        throw new Error(`Failed to fetch data for ${type}: ${response.status}`);
-      }
-
-      if (!response.data || !response.data.data) {
-        console.error(`No data found for ${type}`);
-        return;
-      }
-      allRows.push(
-        ...response.data.data.map((row) => {
-          return {
-            id: row.Id,
-            Tipo_Consulta: type,
-            DocTipo: row.DocumentTypeId,
-            date: row.DocumentDate,
-          };
-        }),
-      );
-
-      const rowsQuantity = response.data.recordsTotal;
-      const pages = Math.ceil(rowsQuantity / 50);
-
-      if (pages > 1) {
-        for (let i = 2; i <= pages; i++) {
-          const start = ((i - 1) % 3) * 50;
-          const blockIndex = Math.floor((i - 1) / 3);
-          const IsNextPage = i >= 4;
-          const requestBody = {
-            draw: i,
-            start,
-            length: 50,
-            DocumentKey: '',
-            SerieAndNumber: '',
-            SenderCode: '',
-            ReceiverCode: '',
-            StartDate: currentStartDate,
-            EndDate: currentEndDate,
-            DocumentTypeId: '01', // "Todos"
-            Status: '0', // "Todos"
-            IsNextPage,
-            FilterType: filterType,
-            blockIndex,
-          };
-
-          const promise = await this.axiosInstance.post(url, requestBody, {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          });
-          pagePromises.push(promise);
-        }
-
-        const settledResults = await Promise.allSettled(pagePromises);
-
-        for (const result of settledResults) {
-          if (result.status === 'fulfilled') {
-            const response = result.value;
-            allRows.push(
-              ...response.data.data.map((row) => ({
-                id: row.Id,
-                Tipo_Consulta: type,
-                DocTipo: row.DocumentTypeId,
-                date: row.DocumentDate,
-              })),
-            );
-          } else {
-            console.error('Error fetching page:', result.reason);
-            // optionally: log, retry, or skip
-          }
-        }
-      }
-      console.log(
-        `Found ${allRows.length} documents for ${type},recordsTotal fro period: ${startDate} to ${endDate} is ${rowsQuantity}, replica RAILWAY_REPLICA_ID: ${process.env.RAILWAY_REPLICA_ID}`,
-        allRows,
-      );
-
-      if (allRows.length !== 0) {
-        await this.downloadFiles(allRows, downloadedFiles);
-      }
-    } catch (error) {
-      console.error(`Error in processAndDownload for ${type}:`, error);
-      throw error;
-    }
-  }
 
   private getYear(dateStr: string): number {
     return parseInt(dateStr.split('-')[0], 10);
@@ -250,6 +56,7 @@ export class DownloadLocalService {
   private async downloadFiles(
     rows: Record<string, any>[],
     downloadedFiles: string[],
+    axiosInstance: any,
   ): Promise<Buffer> {
     console.log(`Rows to process: ${rows.length}`);
 
@@ -273,6 +80,7 @@ export class DownloadLocalService {
             row['Tipo_Consulta'],
             row['date'],
             row['id'],
+            axiosInstance,
           );
           for (const file of extractedFiles) {
             filesToZip.push(file);
@@ -374,6 +182,7 @@ export class DownloadLocalService {
     type: 'Received' | 'Sent',
     date: string,
     id: string,
+    axiosInstance: any,
   ): Promise<{ name: string; buffer: Buffer }[]> {
     const files: { name: string; buffer: Buffer }[] = [];
     console.log(
@@ -388,7 +197,7 @@ export class DownloadLocalService {
     const month = String(dateFormate.getMonth() + 1).padStart(2, '0') || '10';
     const folderType = type === 'Received' ? 'RECIBIDOS' : 'ENVIADOS';
 
-    const response = await this.axiosInstance.get(url, {
+    const response = await axiosInstance.get(url, {
       responseType: 'arraybuffer',
     });
 
@@ -427,8 +236,12 @@ export class DownloadLocalService {
     enviados: boolean,
     nit: string,
   ): Promise<Buffer> {
-    // Step 1: Authenticate
-    const authResponse = await this.axiosInstance.get(authUrl);
+    // Create a new CookieJar and axiosInstance for this job
+    const jar = new CookieJar();
+    const axiosInstance = wrapper(axios.create({ jar, withCredentials: true }));
+
+    // Step 1: Authenticate (this sets cookies in the jar)
+    const authResponse = await axiosInstance.get(authUrl);
     if (authResponse.status !== 200) {
       throw new Error(
         `Authentication failed with status ${authResponse.status}`,
@@ -437,32 +250,40 @@ export class DownloadLocalService {
 
     // Step 2: Gather all rows for both types
     const allRows: Record<string, any>[] = [];
-    const tabulatedData: Record<string, any>[] = [];
-    const downloadedFiles: string[] = [];
-
     if (recibidos) {
-      const rows = await this.getRows('Received', startDate, endDate, nit);
+      const rows = await this.getRows(
+        'Received',
+        startDate,
+        endDate,
+        nit,
+        axiosInstance,
+      );
       allRows.push(...rows);
     }
     if (enviados) {
-      const rows = await this.getRows('Sent', startDate, endDate, nit);
+      const rows = await this.getRows(
+        'Sent',
+        startDate,
+        endDate,
+        nit,
+        axiosInstance,
+      );
       allRows.push(...rows);
     }
     console.log('startDate', startDate);
     console.log('endDate', endDate);
 
     console.log('allRows', allRows);
-    return;
     // Step 3: Download files and build ZIP
-    return await this.downloadFiles(allRows, downloadedFiles);
+    return await this.downloadFiles(allRows, [], axiosInstance);
   }
 
-  // Helper to get all rows for a type
   private async getRows(
     type: string,
     startDate: string,
     endDate: string,
     nit: string,
+    axiosInstance: any,
   ): Promise<Record<string, any>[]> {
     const url = `https://catalogo-vpfe.dian.gov.co/Document/GetDocumentsPageToken`;
     const sameYear = this.getYear(endDate) === this.getYear(startDate);
@@ -489,7 +310,7 @@ export class DownloadLocalService {
       FilterType: filterType,
       blockIndex: 0,
     };
-    const response = await this.axiosInstance.post(url, requestBody, {
+    const response = await axiosInstance.post(url, requestBody, {
       headers: { 'Content-Type': 'application/json' },
     });
 
@@ -532,7 +353,7 @@ export class DownloadLocalService {
         };
 
         pagePromises.push(
-          this.axiosInstance.post(url, requestBody, {
+          axiosInstance.post(url, requestBody, {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           }),
         );
