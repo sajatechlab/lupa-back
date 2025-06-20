@@ -210,10 +210,12 @@ export class ZipFileProcessingProcessor {
     // Download and extract file, return as array of { name, buffer }
     try {
       const downloadUrl =
-        file['DocTipo'] === '05' || file['DocTipo'] === '102'
+        file['DocTipo'] === '05'
           ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilePdf?cune=${file['id']}`
           : file['DocTipo'] === '60'
           ? `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFilesEquivalente?trackId=${file['id']}`
+          : file['DocTipo'] === '102'
+          ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilesIndividualPayroll?trackId=${file['id']}&token=${file['token']}`
           : `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${file['id']}`;
       const extractedFiles = await this.downloadService.downloadAndProcessZip(
         downloadUrl,

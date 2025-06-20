@@ -345,6 +345,7 @@ export class DownloadLocalService {
         Tipo_Consulta: type,
         DocTipo: row.DocumentTypeId,
         date: this.parseDotNetDate(row.EmissionDate),
+        token: row.TokenConsulta,
       })),
     );
 
@@ -392,6 +393,7 @@ export class DownloadLocalService {
               Tipo_Consulta: type,
               DocTipo: row.DocumentTypeId,
               date: this.parseDotNetDate(row.EmissionDate),
+              token: row.TokenConsulta,
             })),
           );
         }
