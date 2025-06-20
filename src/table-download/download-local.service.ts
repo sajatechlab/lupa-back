@@ -19,6 +19,7 @@ import * as path from 'path';
 import * as archiver from 'archiver';
 import { PassThrough } from 'stream';
 import * as fs from 'fs';
+import * as os from 'os';
 
 enum InvoiceType {
   RECEIVED = 'RECEIVED',
@@ -55,7 +56,8 @@ export class DownloadLocalService {
     rows: Record<string, any>[],
     downloadedFiles: string[],
     axiosInstance: any,
-  ): Promise<Buffer> {
+    jobId: string,
+  ): Promise<string> {
     console.log(`Rows to process: ${rows.length}`);
 
     const validFiles = rows.filter(
@@ -100,7 +102,13 @@ export class DownloadLocalService {
 
     console.log('All files collected, starting to append to archive...');
     const archive = archiver('zip', { zlib: { level: 9 } });
-    const outPath = path.join(__dirname, 'test-output.zip');
+
+    // Create a unique path in the OS's temp directory
+    const tempDir = path.join(os.tmpdir(), 'zips');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const outPath = path.join(tempDir, `dian-export-${jobId}.zip`);
     const fileStream = fs.createWriteStream(outPath);
     archive.pipe(fileStream);
     archive.on('error', (err) => {
@@ -161,9 +169,9 @@ export class DownloadLocalService {
     ]);
 
     // Read the file into a buffer and return it
-    const zipBuffer = fs.readFileSync(outPath);
-    console.log('Returning ZIP buffer from file.');
-    return zipBuffer;
+    // const zipBuffer = fs.readFileSync(outPath);
+    console.log(`ZIP file ready at: ${outPath}`);
+    return outPath;
   }
   private parseDotNetDate(dotNetDate: string): Date | null {
     // Example input: "/Date(1750291200000)/"
@@ -230,7 +238,8 @@ export class DownloadLocalService {
     recibidos: boolean,
     enviados: boolean,
     nit: string,
-  ): Promise<Buffer> {
+    jobId: string,
+  ): Promise<string> {
     // Create a new CookieJar and axiosInstance for this job
     const jar = new CookieJar();
     const axiosInstance = wrapper(axios.create({ jar, withCredentials: true }));
@@ -269,8 +278,8 @@ export class DownloadLocalService {
     console.log('endDate', endDate);
 
     console.log('allRows', allRows);
-    // Step 3: Download files and build ZIP
-    return await this.downloadFiles(allRows, [], axiosInstance);
+    // Step 3: Download files and build ZIP, passing the jobId
+    return await this.downloadFiles(allRows, [], axiosInstance, jobId);
   }
 
   private async getRows(
