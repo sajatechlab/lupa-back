@@ -73,27 +73,22 @@ export class ZipGenerationProcessor {
         allRows.push(...rows);
       }
       console.log(`[Parent Job] Total rows to process: ${allRows.length}`);
+      const validFiles = allRows.filter(
+        (row) => row['id'] && row['DocTipo'] !== '96',
+      );
 
-      // 2. Split into batches (e.g., BATCH_SIZE = 5)
-      const BATCH_SIZE = 5;
-      const batches = [];
-      for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
-        batches.push(allRows.slice(i, i + BATCH_SIZE));
-      }
-      console.log(`[Parent Job] Total batches: ${batches.length}`);
-
-      // 3. Add a child job for each batch
+      // 2. Add a child job for each file (no batching)
       const redisConnection = {
         url: process.env.REDIS_URL,
         maxRetriesPerRequest: null,
       };
       const flowProducer = new FlowProducer({ connection: redisConnection });
-      const children = batches.map((batch, idx) => ({
-        name: 'process-batch',
+      const children = validFiles.map((file, idx) => ({
+        name: 'process-file',
         queueName: ZIP_FILE_PROCESSING_QUEUE,
         data: {
-          batch,
-          batchIndex: idx,
+          file,
+          fileIndex: idx,
           jobId: job.id,
           authUrl: data.authUrl,
           nit: data.nit,
@@ -109,7 +104,7 @@ export class ZipGenerationProcessor {
         `[Parent Job] Flow with children created. Waiting for children to finish...`,
       );
 
-      // 4. Wait for all children to complete using QueueEvents
+      // 3. Wait for all children to complete using QueueEvents
       const queueEvents = new QueueEvents(ZIP_FILE_PROCESSING_QUEUE, {
         connection: redisConnection,
       });
@@ -146,15 +141,25 @@ export class ZipGenerationProcessor {
         console.log(`[Parent Job] No child jobs to process.`);
       }
 
-      // 5. Aggregate all files and create the final ZIP
+      // 4. Aggregate all files and create the final ZIP
       console.log(`[Parent Job] Creating ZIP...`);
+      const hydratedResults = childResults.map((file) => ({
+        ...file,
+        buffer: Buffer.isBuffer(file.buffer)
+          ? file.buffer
+          : Buffer.from(
+              Array.isArray((file.buffer as any)?.data)
+                ? (file.buffer as any).data
+                : [],
+            ),
+      }));
       const zipBuffer = await this.downloadService.createZipFromBuffers(
-        childResults,
+        hydratedResults,
         job.id.toString(),
       );
       console.log(`[Parent Job] ZIP created. Size: ${zipBuffer.length} bytes`);
 
-      // 6. Upload to Spaces
+      // 5. Upload to Spaces
       const s3Key = `dian-exports/dian-export-${job.id}.zip`;
       console.log(`[Parent Job] Uploading ZIP to cloud storage as ${s3Key}...`);
       await this.attachmentsService.uploadFile(zipBuffer, s3Key);
@@ -169,27 +174,27 @@ export class ZipGenerationProcessor {
   }
 }
 
-// New processor for batch/file processing
+// New processor for file processing (no batch)
 @Processor(ZIP_FILE_PROCESSING_QUEUE)
 export class ZipFileProcessingProcessor {
   constructor(private readonly downloadService: DownloadLocalService) {}
 
-  @Process('process-batch')
-  async handleBatch(
+  @Process('process-file')
+  async handleFile(
     job: Job<{
-      batch: Record<string, any>[];
-      batchIndex: number;
+      file: Record<string, any>;
+      fileIndex: number;
       jobId: string;
       authUrl: string;
       nit: string;
     }>,
   ) {
-    const { batch, batchIndex, jobId, authUrl, nit } = job.data;
+    const { file, fileIndex, jobId, authUrl, nit } = job.data;
     console.log(
-      `[Child Job] Processing batch ${batchIndex} for parent job ${jobId}`,
+      `[Child Job] Processing file ${fileIndex} for parent job ${jobId}`,
     );
 
-    // Authenticate with DIAN for this batch
+    // Authenticate with DIAN for this file
     const jar = new CookieJar();
     const axiosInstance = wrapper(axios.create({ jar, withCredentials: true }));
     const authResponse = await axiosInstance.get(authUrl);
@@ -199,29 +204,31 @@ export class ZipFileProcessingProcessor {
       );
     }
     console.log(
-      `[Child Job] Authenticated for batch ${batchIndex} (parent job ${jobId})`,
+      `[Child Job] Authenticated for file ${fileIndex} (parent job ${jobId})`,
     );
 
-    // Download and extract files for this batch, return as array of { name, buffer }
-    const files: { name: string; buffer: Buffer }[] = [];
-    for (const row of batch) {
-      try {
-        const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
-        const extractedFiles = await this.downloadService.downloadAndProcessZip(
-          downloadUrl,
-          row['Tipo_Consulta'],
-          row['date'],
-          row['id'],
-          axiosInstance, // Pass authenticated instance
-        );
-        files.push(...extractedFiles);
-      } catch (error) {
-        console.error(
-          `[Child Job] Failed to process document ID ${row['id']}:`,
-          error.message,
-        );
-      }
+    // Download and extract file, return as array of { name, buffer }
+    try {
+      const downloadUrl =
+        file['DocTipo'] === '05' || file['DocTipo'] === '102'
+          ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilePdf?cune=${file['id']}`
+          : file['DocTipo'] === '60'
+          ? `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFilesEquivalente?trackId=${file['id']}`
+          : `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${file['id']}`;
+      const extractedFiles = await this.downloadService.downloadAndProcessZip(
+        downloadUrl,
+        file['Tipo_Consulta'],
+        file['date'],
+        file['id'],
+        axiosInstance, // Pass authenticated instance
+      );
+      return extractedFiles;
+    } catch (error) {
+      console.error(
+        `[Child Job] Failed to process document ID ${file['id']}:`,
+        error.message,
+      );
+      return [];
     }
-    return files;
   }
 }
