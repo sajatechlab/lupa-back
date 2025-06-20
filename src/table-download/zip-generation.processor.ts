@@ -31,105 +31,141 @@ export class ZipGenerationProcessor {
     private readonly attachmentsService: AttachmentsService,
   ) {}
 
-  @Process()
+  @Process('zip-generation')
   async handleZipGeneration(job: Job<ZipJobPayload>): Promise<string> {
-    console.log(`Processing parent job ${job.id}...`);
-    const { data } = job;
+    try {
+      console.log(`Processing parent job ${job.id}...`);
+      const { data } = job;
 
-    // Authenticate with DIAN before calling getRows
-    const jar = new CookieJar();
-    const axiosInstance = wrapper(axios.create({ jar, withCredentials: true }));
-    const authResponse = await axiosInstance.get(data.authUrl);
-    if (authResponse.status !== 200) {
-      throw new Error(
-        `Authentication failed with status ${authResponse.status}`,
+      // Authenticate with DIAN before calling getRows
+      const jar = new CookieJar();
+      const axiosInstance = wrapper(
+        axios.create({ jar, withCredentials: true }),
       );
-    }
-    console.log(`[Parent Job] Authenticated for job ${job.id}`);
+      const authResponse = await axiosInstance.get(data.authUrl);
+      if (authResponse.status !== 200) {
+        throw new Error(
+          `Authentication failed with status ${authResponse.status}`,
+        );
+      }
+      console.log(`[Parent Job] Authenticated for job ${job.id}`);
 
-    // 1. Gather all rows (files to process) using authenticated axiosInstance
-    const allRows: Record<string, any>[] = [];
-    if (data.recibidos) {
-      const rows = await this.downloadService.getRows(
-        'Received',
-        data.startDate,
-        data.endDate,
-        data.nit,
-        axiosInstance,
-      );
-      allRows.push(...rows);
-    }
-    if (data.enviados) {
-      const rows = await this.downloadService.getRows(
-        'Sent',
-        data.startDate,
-        data.endDate,
-        data.nit,
-        axiosInstance,
-      );
-      allRows.push(...rows);
-    }
+      // 1. Gather all rows (files to process) using authenticated axiosInstance
+      const allRows: Record<string, any>[] = [];
+      if (data.recibidos) {
+        const rows = await this.downloadService.getRows(
+          'Received',
+          data.startDate,
+          data.endDate,
+          data.nit,
+          axiosInstance,
+        );
+        allRows.push(...rows);
+      }
+      if (data.enviados) {
+        const rows = await this.downloadService.getRows(
+          'Sent',
+          data.startDate,
+          data.endDate,
+          data.nit,
+          axiosInstance,
+        );
+        allRows.push(...rows);
+      }
+      console.log(`[Parent Job] Total rows to process: ${allRows.length}`);
 
-    // 2. Split into batches (e.g., BATCH_SIZE = 5)
-    const BATCH_SIZE = 5;
-    const batches = [];
-    for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
-      batches.push(allRows.slice(i, i + BATCH_SIZE));
-    }
+      // 2. Split into batches (e.g., BATCH_SIZE = 5)
+      const BATCH_SIZE = 5;
+      const batches = [];
+      for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
+        batches.push(allRows.slice(i, i + BATCH_SIZE));
+      }
+      console.log(`[Parent Job] Total batches: ${batches.length}`);
 
-    // 3. Add a child job for each batch
-    const connection =
-      (this.fileQueue as any).client || (this.fileQueue as any).connection;
-    const flowProducer = new FlowProducer({ connection });
-    const children = batches.map((batch, idx) => ({
-      name: 'process-batch',
-      queueName: ZIP_FILE_PROCESSING_QUEUE,
-      data: {
-        batch,
-        batchIndex: idx,
-        jobId: job.id,
-        authUrl: data.authUrl,
-        nit: data.nit,
-      },
-    }));
-    const flow = await flowProducer.add({
-      name: 'zip-generation',
-      queueName: ZIP_GENERATION_QUEUE,
-      data,
-      children,
-    });
-
-    // 4. Wait for all children to complete using QueueEvents
-    const queueEvents = new QueueEvents(ZIP_FILE_PROCESSING_QUEUE, {
-      connection: {
-        ...connection,
+      // 3. Add a child job for each batch
+      const redisConnection = {
+        url: process.env.REDIS_URL,
         maxRetriesPerRequest: null,
-      },
-    });
-    await queueEvents.waitUntilReady();
+      };
+      const flowProducer = new FlowProducer({ connection: redisConnection });
+      const children = batches.map((batch, idx) => ({
+        name: 'process-batch',
+        queueName: ZIP_FILE_PROCESSING_QUEUE,
+        data: {
+          batch,
+          batchIndex: idx,
+          jobId: job.id,
+          authUrl: data.authUrl,
+          nit: data.nit,
+        },
+      }));
+      const flow = await flowProducer.add({
+        name: 'zip-generation',
+        queueName: ZIP_GENERATION_QUEUE,
+        data,
+        children,
+      });
+      console.log(
+        `[Parent Job] Flow with children created. Waiting for children to finish...`,
+      );
 
-    const childResults: { name: string; buffer: Buffer }[] = [];
-    for (const child of flow.children) {
-      const childJobId = child.job.id;
-      const childJob = await this.fileQueue.getJob(childJobId);
-      const result = await childJob.waitUntilFinished(queueEvents);
-      childResults.push(...result);
+      // 4. Wait for all children to complete using QueueEvents
+      const queueEvents = new QueueEvents(ZIP_FILE_PROCESSING_QUEUE, {
+        connection: redisConnection,
+      });
+      await queueEvents.waitUntilReady();
+
+      const childResults: { name: string; buffer: Buffer }[] = [];
+      if (Array.isArray(flow.children) && flow.children.length > 0) {
+        for (const child of flow.children) {
+          const childJobId = child.job.id;
+          let result;
+          while (true) {
+            const childJob = await this.fileQueue.getJob(childJobId);
+            if (!childJob) throw new Error(`Child job ${childJobId} not found`);
+            const state = await childJob.getState();
+            if (state === 'completed') {
+              result = await childJob.returnvalue;
+              break;
+            } else if (state === 'failed') {
+              throw new Error(`Child job ${childJobId} failed`);
+            }
+            await new Promise((res) => setTimeout(res, 500)); // wait 0.5s
+          }
+          console.log(
+            `[Parent Job] Child job ${childJobId} finished, result length: ${result?.length}`,
+          );
+          childResults.push(...result);
+        }
+        await queueEvents.close(); // Clean up
+        console.log(
+          `[Parent Job] All child jobs finished. Total files: ${childResults.length}`,
+        );
+      } else {
+        await queueEvents.close(); // Clean up
+        console.log(`[Parent Job] No child jobs to process.`);
+      }
+
+      // 5. Aggregate all files and create the final ZIP
+      console.log(`[Parent Job] Creating ZIP...`);
+      const zipBuffer = await this.downloadService.createZipFromBuffers(
+        childResults,
+        job.id.toString(),
+      );
+      console.log(`[Parent Job] ZIP created. Size: ${zipBuffer.length} bytes`);
+
+      // 6. Upload to Spaces
+      const s3Key = `dian-exports/dian-export-${job.id}.zip`;
+      console.log(`[Parent Job] Uploading ZIP to cloud storage as ${s3Key}...`);
+      await this.attachmentsService.uploadFile(zipBuffer, s3Key);
+      console.log(`[Parent Job] Uploaded ${s3Key} to cloud storage.`);
+
+      console.log(`[Parent Job] Returning s3Key: ${s3Key}`);
+      return s3Key;
+    } catch (err) {
+      console.error(`[Parent Job] Error:`, err);
+      throw err;
     }
-
-    await queueEvents.close(); // Clean up
-
-    // 5. Aggregate all files and create the final ZIP
-    const zipBuffer = await this.downloadService.createZipFromBuffers(
-      childResults,
-      job.id.toString(),
-    );
-
-    // 6. Upload to Spaces
-    const s3Key = `dian-exports/dian-export-${job.id}.zip`;
-    await this.attachmentsService.uploadFile(zipBuffer, s3Key);
-    console.log(`Uploaded ${s3Key} to cloud storage.`);
-
-    return s3Key;
   }
 }
 
