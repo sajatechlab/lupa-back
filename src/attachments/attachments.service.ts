@@ -5,11 +5,15 @@ import { ConfigService } from '@nestjs/config';
 export class AttachmentsService {
   private s3: AWS.S3;
   constructor(private configService: ConfigService) {
+    const endpoint = this.configService.get('SPACES_ENDPOINT');
+    const accessKeyId = this.configService.get('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.configService.get('AWS_SECRET_ACCESS_KEY');
+
     this.s3 = new AWS.S3({
-      endpoint: this.configService.get('SPACES_ENDPOINT'),
+      endpoint,
       credentials: {
-        accessKeyId: this.configService.get('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: this.configService.get('AWS_SECRET_ACCESS_KEY'),
+        accessKeyId,
+        secretAccessKey,
       },
       region: 'nyc3',
     });

@@ -8,6 +8,7 @@ import {
   Param,
   HttpException,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { TableDownloadService } from './table-download.service';
 import { SentInvoicesQueue } from './sent-invoices.queue';
@@ -22,6 +23,7 @@ import {
 import { Response } from 'express';
 import * as fs from 'fs';
 import { Public } from 'src/auth/decorators/public.decorator';
+import { AttachmentsService } from '../attachments/attachments.service';
 
 @Controller('table-download')
 export class TableDownloadController {
@@ -31,6 +33,7 @@ export class TableDownloadController {
     private readonly receivedInvoicesQueue: ReceivedInvoicesQueue,
     private readonly downloadLocalService: DownloadLocalService,
     @InjectQueue(ZIP_GENERATION_QUEUE) private readonly zipQueue: Queue,
+    private readonly attachmentsService: AttachmentsService,
   ) {}
 
   // --- NEW ASYNC ENDPOINTS ---
@@ -75,16 +78,40 @@ export class TableDownloadController {
       );
     }
 
-    const filePath = job.returnvalue;
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new HttpException('Result file not found.', HttpStatus.NOT_FOUND);
+    const s3Key = job.returnvalue as string;
+    if (!s3Key) {
+      throw new HttpException(
+        'Job result (file key) not found.',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
-    res.download(filePath, (err) => {
-      if (err) {
-        console.error('Error sending file:', err);
+    try {
+      const { buffer, contentType } =
+        await this.attachmentsService.downloadFile(s3Key);
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="dian-export-${jobId}.zip"`,
+      );
+      res.send(buffer);
+    } catch (error) {
+      console.error(
+        `Failed to download file ${s3Key} from cloud storage:`,
+        error,
+      );
+      if (error instanceof NotFoundException) {
+        throw new HttpException(
+          'File not found in cloud storage.',
+          HttpStatus.NOT_FOUND,
+        );
       }
-    });
+      throw new HttpException(
+        'Failed to retrieve file.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   // --- EXISTING ENDPOINTS ---
