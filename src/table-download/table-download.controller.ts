@@ -40,7 +40,7 @@ export class TableDownloadController {
   @Public()
   @Post('start-zip-generation')
   async startZipGeneration(@Body() payload: ZipJobPayload) {
-    const job = await this.zipQueue.add(payload, {
+    const job = await this.zipQueue.add('zip-generation', payload, {
       attempts: 2,
       removeOnComplete: false,
       removeOnFail: false,
