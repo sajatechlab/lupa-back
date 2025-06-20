@@ -101,7 +101,10 @@ export class ZipGenerationProcessor {
 
     // 4. Wait for all children to complete using QueueEvents
     const queueEvents = new QueueEvents(ZIP_FILE_PROCESSING_QUEUE, {
-      connection,
+      connection: {
+        ...connection,
+        maxRetriesPerRequest: null,
+      },
     });
     await queueEvents.waitUntilReady();
 
