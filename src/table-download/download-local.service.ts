@@ -244,14 +244,14 @@ export class DownloadLocalService {
         const content = entry.getData();
         const fileName = name.endsWith('.pdf') ? '.pdf' : '.xml';
         files.push({
-          name: `luup/${year}/${folderType}/${month}/UNZIP/${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}${fileName}`,
+          name: `luup/${year}/${folderType}/${month}/UNZIP/TD${doctType}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}${fileName}`,
           buffer: content,
         });
       }
     }
 
     files.push({
-      name: `luup/${year}/${folderType}/${month}/ZIP/${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}.zip`,
+      name: `luup/${year}/${folderType}/${month}/ZIP/TD${doctType}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}.zip`,
       buffer: originalZipBuffer,
     });
 
