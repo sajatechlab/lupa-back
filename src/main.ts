@@ -4,10 +4,10 @@ import * as cookieParser from 'cookie-parser';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { getQueueToken } from '@nestjs/bull';
 import { createBullBoard } from '@bull-board/api';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { ExpressAdapter } from '@bull-board/express';
-import { Queue } from 'bull';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -75,19 +75,22 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // Get the queue instance
-  const sentInvoicesQueue = app.get<Queue>('BullQueue_sent-invoices');
-  const receivedInvoicesQueue = app.get<Queue>('BullQueue_received-invoices');
+  // Bull-board setup
+  const sentInvoicesQueue = app.get(getQueueToken('sent-invoices'));
+  const receivedInvoicesQueue = app.get(getQueueToken('received-invoices'));
+  const zipGenerationQueue = app.get(getQueueToken('zip-generation'));
+  const zipFileProcessingQueue = app.get(getQueueToken('zip-file-processing'));
 
   const serverAdapter = new ExpressAdapter();
   createBullBoard({
     queues: [
       new BullAdapter(sentInvoicesQueue),
       new BullAdapter(receivedInvoicesQueue),
+      new BullAdapter(zipGenerationQueue),
+      new BullAdapter(zipFileProcessingQueue),
     ],
     serverAdapter,
   });
-
   serverAdapter.setBasePath('/admin/queues');
   app.use('/admin/queues', serverAdapter.getRouter());
 

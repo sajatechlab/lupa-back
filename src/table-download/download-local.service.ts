@@ -300,7 +300,7 @@ export class DownloadLocalService {
     return await this.downloadFiles(allRows, [], axiosInstance, jobId);
   }
 
-  private async getRows(
+  public async getRows(
     type: string,
     startDate: string,
     endDate: string,
@@ -398,5 +398,24 @@ export class DownloadLocalService {
       }
     }
     return allRows;
+  }
+
+  public async createZipFromBuffers(
+    files: { name: string; buffer: Buffer }[],
+    jobId: string,
+  ): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      const buffers: Buffer[] = [];
+      archive.on('data', (chunk) => buffers.push(chunk));
+      archive.on('error', (err) => reject(err));
+      archive.on('end', () => {
+        resolve(Buffer.concat(buffers));
+      });
+      for (const file of files) {
+        archive.append(file.buffer, { name: file.name });
+      }
+      archive.finalize();
+    });
   }
 }
