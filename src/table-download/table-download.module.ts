@@ -14,6 +14,11 @@ import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
 import { SoftwareProvider } from '../software-provider/entities/software-provider.entity';
 import { AttachmentsModule } from '../attachments/attachments.module';
 import { DownloadLocalService } from './download-local.service';
+import {
+  ZipGenerationProcessor,
+  ZIP_GENERATION_QUEUE,
+} from './zip-generation.processor';
+
 @Module({
   imports: [
     HttpModule,
@@ -24,6 +29,9 @@ import { DownloadLocalService } from './download-local.service';
         name: 'sent-invoices',
       },
       { name: 'received-invoices' },
+      {
+        name: ZIP_GENERATION_QUEUE,
+      },
     ),
   ],
   controllers: [TableDownloadController],
@@ -34,6 +42,7 @@ import { DownloadLocalService } from './download-local.service';
     ReceivedInvoicesProcessor,
     SentInvoicesProcessor,
     DownloadLocalService,
+    ZipGenerationProcessor,
   ],
   exports: [
     TableDownloadService,
