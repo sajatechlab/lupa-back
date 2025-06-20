@@ -277,6 +277,10 @@ export class ZipFileProcessingProcessor {
           file['Tipo_Consulta'],
           file['date'],
           file['id'],
+          file['DocTipo'],
+          file['serieNumber'],
+          file['thirdPartyNit'],
+          file['thirdPartyName'],
           axiosInstance, // Pass authenticated instance
         );
         return extractedFiles;
