@@ -85,6 +85,10 @@ export class DownloadLocalService {
             row['Tipo_Consulta'],
             row['date'],
             row['id'],
+            row['DocTipo'],
+            row['serieNumber'],
+            row['thirdPartyNit'],
+            row['thirdPartyName'],
             axiosInstance,
           );
           for (const file of extractedFiles) {
@@ -206,6 +210,10 @@ export class DownloadLocalService {
     type: 'Received' | 'Sent',
     date: string,
     id: string,
+    doctType: string,
+    serieNumber: string,
+    thirdPartyNit: string,
+    thirdPartyName: string,
     axiosInstance: any,
   ): Promise<{ name: string; buffer: Buffer }[]> {
     const files: { name: string; buffer: Buffer }[] = [];
@@ -216,6 +224,7 @@ export class DownloadLocalService {
     const fullDate = new Date(date);
     const year = String(fullDate.getFullYear()).padStart(4, '0');
     const month = String(fullDate.getMonth() + 1).padStart(2, '0');
+    const day = String(fullDate.getDate()).padStart(2, '0');
     const folderType = type === 'Received' ? 'RECIBIDOS' : 'ENVIADOS';
 
     const response = await axiosInstance.get(url, {
@@ -235,14 +244,14 @@ export class DownloadLocalService {
         const content = entry.getData();
         const fileName = name.split('/').pop();
         files.push({
-          name: `luup/${year}/${month}/${folderType}/UNZIP/${id}_${fileName}`,
+          name: `luup/${year}/${folderType}/${month}/UNZIP/${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}`,
           buffer: content,
         });
       }
     }
 
     files.push({
-      name: `luup/${year}/${month}/${folderType}/ZIP/${id}.zip`,
+      name: `luup/${year}/${folderType}/${month}/ZIP/${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}.zip`,
       buffer: originalZipBuffer,
     });
 
@@ -346,14 +355,21 @@ export class DownloadLocalService {
         DocTipo: row.DocumentTypeId,
         date: this.parseDotNetDate(row.EmissionDate),
         token: row.TokenConsulta,
+        serieNumber: row.SerieAndNumber,
+        thirdPartyNit: type === 'Received' ? row.SenderCode : row.ReceiverCode,
+        thirdPartyName: (type === 'Received'
+          ? row.SenderName
+          : row.ReceiverName
+        )?.slice(0, 20),
       })),
     );
 
     const rowsQuantity = response.data.recordsTotal;
-    
+
     const pages = Math.ceil(rowsQuantity / 50);
-    console.log(`Total rows found for ${type}: ${rowsQuantity} - Total pages for ${type}: ${pages}`);
-  
+    console.log(
+      `Total rows found for ${type}: ${rowsQuantity} - Total pages for ${type}: ${pages}`,
+    );
 
     if (pages > 1) {
       const pagePromises = [];
@@ -397,6 +413,13 @@ export class DownloadLocalService {
               DocTipo: row.DocumentTypeId,
               date: this.parseDotNetDate(row.EmissionDate),
               token: row.TokenConsulta,
+              serieNumber: row.SerieAndNumber,
+              thirdPartyNit:
+                type === 'Received' ? row.SenderCode : row.ReceiverCode,
+              thirdPartyName: (type === 'Received'
+                ? row.SenderName
+                : row.ReceiverName
+              )?.slice(0, 20),
             })),
           );
         }
