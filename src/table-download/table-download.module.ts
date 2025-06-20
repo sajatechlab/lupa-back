@@ -17,6 +17,8 @@ import { DownloadLocalService } from './download-local.service';
 import {
   ZipGenerationProcessor,
   ZIP_GENERATION_QUEUE,
+  ZipFileProcessingProcessor,
+  ZIP_FILE_PROCESSING_QUEUE,
 } from './zip-generation.processor';
 
 @Module({
@@ -32,6 +34,7 @@ import {
       {
         name: ZIP_GENERATION_QUEUE,
       },
+      { name: ZIP_FILE_PROCESSING_QUEUE },
     ),
   ],
   controllers: [TableDownloadController],
@@ -43,6 +46,7 @@ import {
     SentInvoicesProcessor,
     DownloadLocalService,
     ZipGenerationProcessor,
+    ZipFileProcessingProcessor,
   ],
   exports: [
     TableDownloadService,
