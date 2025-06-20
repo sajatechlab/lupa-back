@@ -194,43 +194,64 @@ export class ZipFileProcessingProcessor {
       `[Child Job] Processing file ${fileIndex} for parent job ${jobId}`,
     );
 
-    // Authenticate with DIAN for this file
-    const jar = new CookieJar();
-    const axiosInstance = wrapper(axios.create({ jar, withCredentials: true }));
-    const authResponse = await axiosInstance.get(authUrl);
-    if (authResponse.status !== 200) {
-      throw new Error(
-        `Authentication failed with status ${authResponse.status}`,
-      );
-    }
-    console.log(
-      `[Child Job] Authenticated for file ${fileIndex} (parent job ${jobId})`,
-    );
+    const MAX_RETRIES = 3;
+    let attempt = 0;
+    let lastError: any;
 
-    // Download and extract file, return as array of { name, buffer }
-    try {
-      const downloadUrl =
-        file['DocTipo'] === '05'
-          ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilePdf?cune=${file['id']}`
-          : file['DocTipo'] === '60'
-          ? `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFilesEquivalente?trackId=${file['id']}`
-          : file['DocTipo'] === '102'
-          ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilesIndividualPayroll?trackId=${file['id']}&token=${file['token']}`
-          : `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${file['id']}`;
-      const extractedFiles = await this.downloadService.downloadAndProcessZip(
-        downloadUrl,
-        file['Tipo_Consulta'],
-        file['date'],
-        file['id'],
-        axiosInstance, // Pass authenticated instance
-      );
-      return extractedFiles;
-    } catch (error) {
-      console.error(
-        `[Child Job] Failed to process document ID ${file['id']}:`,
-        error.message,
-      );
-      return [];
+    while (attempt < MAX_RETRIES) {
+      try {
+        // Authenticate with DIAN for this file
+        const jar = new CookieJar();
+        const axiosInstance = wrapper(
+          axios.create({ jar, withCredentials: true }),
+        );
+        const authResponse = await axiosInstance.get(authUrl);
+        if (authResponse.status !== 200) {
+          throw new Error(
+            `Authentication failed with status ${authResponse.status}`,
+          );
+        }
+        console.log(
+          `[Child Job] Authenticated for file ${fileIndex} (parent job ${jobId})`,
+        );
+
+        // Download and extract file, return as array of { name, buffer }
+        const downloadUrl =
+          file['DocTipo'] === '05'
+            ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilePdf?cune=${file['id']}`
+            : file['DocTipo'] === '60'
+            ? `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFilesEquivalente?trackId=${file['id']}`
+            : file['DocTipo'] === '102'
+            ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilesIndividualPayroll?trackId=${file['id']}&token=${file['token']}`
+            : `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${file['id']}`;
+        const extractedFiles = await this.downloadService.downloadAndProcessZip(
+          downloadUrl,
+          file['Tipo_Consulta'],
+          file['date'],
+          file['id'],
+          axiosInstance, // Pass authenticated instance
+        );
+        return extractedFiles;
+      } catch (error) {
+        lastError = error;
+        attempt++;
+        console.error(
+          `[Child Job] Attempt ${attempt} failed for document ID ${file['id']}:`,
+          error.message,
+          error.code,
+          error.config?.url,
+        );
+        if (attempt < MAX_RETRIES) {
+          // Wait before retrying
+          await new Promise((res) => setTimeout(res, 1000 * attempt));
+        }
+      }
     }
+    // After all retries failed
+    console.error(
+      `[Child Job] All ${MAX_RETRIES} attempts failed for document ID ${file['id']}. Last error:`,
+      lastError?.message,
+    );
+    return [];
   }
 }
