@@ -14,7 +14,7 @@ import { Company } from '../company/entities/company.entity';
 import { Invoice } from '../invoice/entities/invoice.entity';
 import { InvoiceLine } from '../invoice/entities/invoice-line.entity';
 import { SoftwareProvider } from '../software-provider/entities/software-provider.entity';
-import { AttachmentsService } from 'src/attachments/attachments.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import * as path from 'path';
 import * as archiver from 'archiver';
 import { PassThrough } from 'stream';
@@ -169,9 +169,22 @@ export class DownloadLocalService {
     ]);
 
     // Read the file into a buffer and return it
-    // const zipBuffer = fs.readFileSync(outPath);
-    console.log(`ZIP file ready at: ${outPath}`);
-    return outPath;
+    const zipBuffer = fs.readFileSync(outPath);
+
+    // Define the key/filename for cloud storage
+    const s3Key = `dian-exports/dian-export-${jobId}.zip`;
+
+    // Upload to Spaces
+    await this.attachmentsService.uploadFile(zipBuffer, s3Key);
+    console.log(`Uploaded ${s3Key} to cloud storage.`);
+
+    // Clean up local temp file
+    fs.unlinkSync(outPath);
+    console.log(`Removed temporary file: ${outPath}`);
+
+    // Return the S3 key
+    console.log(`Job ${jobId} finished. Returning S3 key: ${s3Key}`);
+    return s3Key;
   }
   private parseDotNetDate(dotNetDate: string): Date | null {
     // Example input: "/Date(1750291200000)/"
