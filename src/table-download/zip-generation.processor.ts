@@ -60,6 +60,8 @@ export class ZipGenerationProcessor {
           data.nit,
           axiosInstance,
         );
+        console.log('[Parent Job] Received rows:', rows.length);
+
         allRows.push(...rows);
       }
       if (data.enviados) {
@@ -70,12 +72,14 @@ export class ZipGenerationProcessor {
           data.nit,
           axiosInstance,
         );
+        console.log('[Parent Job] Sent rows:', rows.length);
         allRows.push(...rows);
       }
-      console.log(`[Parent Job] Total rows to process: ${allRows.length}`);
       const validFiles = allRows.filter(
         (row) => row['id'] && row['DocTipo'] !== '96',
       );
+      console.log(`[Parent Job] Total rows to process: ${validFiles.length}`);
+      console.log('validFiles:', validFiles.length);
 
       // 2. Add a child job for each file (no batching)
       const redisConnection = {
@@ -111,6 +115,7 @@ export class ZipGenerationProcessor {
       await queueEvents.waitUntilReady();
 
       const childResults: { name: string; buffer: Buffer }[] = [];
+      const failedFiles: any[] = [];
       if (Array.isArray(flow.children) && flow.children.length > 0) {
         for (const child of flow.children) {
           const childJobId = child.job.id;
@@ -130,11 +135,49 @@ export class ZipGenerationProcessor {
           if (Array.isArray(result)) {
             childResults.push(...result);
           } else {
-            const fileId = child?.job?.data?.file?.id ?? 'unknown';
+            const fileObj = child?.job?.data?.file;
+            const fileId = fileObj?.id ?? 'unknown';
+            failedFiles.push(fileObj);
             console.error(
               `[Parent Job] Child job ${childJobId} (file id: ${fileId}) returned non-array result:`,
               result,
             );
+          }
+        }
+        // Retry logic for failed files
+        if (failedFiles.length > 0) {
+          console.log(
+            `[Parent Job] Retrying ${failedFiles.length} failed files...`,
+          );
+          for (const file of failedFiles) {
+            const retryJob = await this.fileQueue.add('process-file', {
+              file,
+              fileIndex: file?.fileIndex ?? -1,
+              jobId: job.id,
+              authUrl: data.authUrl,
+              nit: data.nit,
+            });
+            let retryResult;
+            while (true) {
+              const childJob = await this.fileQueue.getJob(retryJob.id);
+              if (!childJob)
+                throw new Error(`Retry child job ${retryJob.id} not found`);
+              const state = await childJob.getState();
+              if (state === 'completed') {
+                retryResult = await childJob.returnvalue;
+                break;
+              } else if (state === 'failed') {
+                console.error(
+                  `[Parent Job] Retry child job ${retryJob.id} (file id: ${file?.id}) failed again.`,
+                );
+                retryResult = [];
+                break;
+              }
+              await new Promise((res) => setTimeout(res, 500));
+            }
+            if (Array.isArray(retryResult)) {
+              childResults.push(...retryResult);
+            }
           }
         }
         await queueEvents.close(); // Clean up

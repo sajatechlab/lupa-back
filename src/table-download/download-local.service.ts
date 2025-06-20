@@ -350,7 +350,10 @@ export class DownloadLocalService {
     );
 
     const rowsQuantity = response.data.recordsTotal;
+    
     const pages = Math.ceil(rowsQuantity / 50);
+    console.log(`Total rows found for ${type}: ${rowsQuantity} - Total pages for ${type}: ${pages}`);
+  
 
     if (pages > 1) {
       const pagePromises = [];
