@@ -127,10 +127,15 @@ export class ZipGenerationProcessor {
             }
             await new Promise((res) => setTimeout(res, 500)); // wait 0.5s
           }
-          console.log(
-            `[Parent Job] Child job ${childJobId} finished, result length: ${result?.length}`,
-          );
-          childResults.push(...result);
+          if (Array.isArray(result)) {
+            childResults.push(...result);
+          } else {
+            const fileId = child?.job?.data?.file?.id ?? 'unknown';
+            console.error(
+              `[Parent Job] Child job ${childJobId} (file id: ${fileId}) returned non-array result:`,
+              result,
+            );
+          }
         }
         await queueEvents.close(); // Clean up
         console.log(
