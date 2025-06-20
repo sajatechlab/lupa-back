@@ -242,9 +242,9 @@ export class DownloadLocalService {
         (name.endsWith('.pdf') || name.endsWith('.xml'))
       ) {
         const content = entry.getData();
-        const fileName = name.split('/').pop();
+        const fileName = name.endsWith('.pdf') ? '.pdf' : '.xml';
         files.push({
-          name: `luup/${year}/${folderType}/${month}/UNZIP/${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}`,
+          name: `luup/${year}/${folderType}/${month}/UNZIP/${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}${fileName}`,
           buffer: content,
         });
       }
