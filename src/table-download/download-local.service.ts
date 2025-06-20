@@ -61,7 +61,7 @@ export class DownloadLocalService {
     console.log(`Rows to process: ${rows.length}`);
 
     const validFiles = rows.filter(
-      (row) => row['id'] && row['DocTipo'] === '01',
+      (row) => row['id'] && row['DocTipo'] !== '69',
     );
     const BATCH_SIZE = 5;
     let successCount = 0;
@@ -74,7 +74,12 @@ export class DownloadLocalService {
 
       const downloadPromises = batch.map(async (row) => {
         try {
-          const downloadUrl = `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
+          const downloadUrl =
+            row['DocTipo'] === '05' || row['DocTipo'] === '102'
+              ? `https://catalogo-vpfe.dian.gov.co/Document/GetFilePdf?cune=${row['id']}`
+              : row['DocTipo'] === '60'
+              ? `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFilesEquivalente?trackId=${row['id']}`
+              : `https://catalogo-vpfe.dian.gov.co/Document/DownloadZipFiles?trackId=${row['id']}`;
           const extractedFiles = await this.downloadAndProcessZip(
             downloadUrl,
             row['Tipo_Consulta'],
@@ -321,7 +326,7 @@ export class DownloadLocalService {
       ReceiverCode: '',
       StartDate: currentStartDate,
       EndDate: currentEndDate,
-      DocumentTypeId: '01', // "Todos"
+      DocumentTypeId: '00', // "Todos"
       Status: '0', // "Todos"
       IsNextPage: false,
       FilterType: filterType,
@@ -362,7 +367,7 @@ export class DownloadLocalService {
           ReceiverCode: '',
           StartDate: currentStartDate,
           EndDate: currentEndDate,
-          DocumentTypeId: '01', // "Todos"
+          DocumentTypeId: '00', // "Todos"
           Status: '0', // "Todos"
           IsNextPage,
           FilterType: filterType,
