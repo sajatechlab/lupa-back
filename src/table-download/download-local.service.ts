@@ -222,9 +222,11 @@ export class DownloadLocalService {
     );
 
     const fullDate = new Date(date);
-    const year = String(fullDate.getFullYear()).padStart(4, '0');
-    const month = String(fullDate.getMonth() + 1).padStart(2, '0');
-    const day = String(fullDate.getDate()).padStart(2, '0');
+    console.log('Full date:', fullDate);
+
+    const year = String(fullDate.getUTCFullYear()).padStart(4, '0');
+    const month = String(fullDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(fullDate.getUTCDate()).padStart(2, '0');
     const folderType = type === 'Received' ? 'RECIBIDOS' : 'ENVIADOS';
 
     const response = await axiosInstance.get(url, {
@@ -244,14 +246,14 @@ export class DownloadLocalService {
         const content = entry.getData();
         const fileName = name.endsWith('.pdf') ? '.pdf' : '.xml';
         files.push({
-          name: `luup/${year}/${folderType}/${month}/UNZIP/TD${doctType}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}${fileName}`,
+          name: `luup/${year}/${folderType}/${month}/UNZIP/TD${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}${fileName}`,
           buffer: content,
         });
       }
     }
 
     files.push({
-      name: `luup/${year}/${folderType}/${month}/ZIP/TD${doctType}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}.zip`,
+      name: `luup/${year}/${folderType}/${month}/ZIP/TD${doctType}_${day}_${month}_${year}_${serieNumber}_${thirdPartyNit}__${thirdPartyName}.zip`,
       buffer: originalZipBuffer,
     });
 
