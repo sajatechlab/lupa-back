@@ -1,7 +1,7 @@
 import { Processor, Process } from '@nestjs/bull';
 import { Job } from 'bull';
 import { DownloadLocalService } from './download-local.service';
-import { FlowProducer, Queue, Worker } from 'bullmq';
+import { FlowProducer, Queue, QueueEvents, Worker } from 'bullmq';
 import * as fs from 'fs';
 import * as path from 'path';
 import { InjectQueue } from '@nestjs/bull';
@@ -99,14 +99,21 @@ export class ZipGenerationProcessor {
       children,
     });
 
-    // 4. Wait for all children to complete
+    // 4. Wait for all children to complete using QueueEvents
+    const queueEvents = new QueueEvents(ZIP_FILE_PROCESSING_QUEUE, {
+      connection,
+    });
+    await queueEvents.waitUntilReady();
+
     const childResults: { name: string; buffer: Buffer }[] = [];
     for (const child of flow.children) {
       const childJobId = child.job.id;
       const childJob = await this.fileQueue.getJob(childJobId);
-      const result = await childJob.waitUntilFinished(connection);
+      const result = await childJob.waitUntilFinished(queueEvents);
       childResults.push(...result);
     }
+
+    await queueEvents.close(); // Clean up
 
     // 5. Aggregate all files and create the final ZIP
     const zipBuffer = await this.downloadService.createZipFromBuffers(
